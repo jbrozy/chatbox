@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -21,9 +21,15 @@ func New(addr string) *http.Server {
 	api.HandlerWithOptions(h, api.GorillaServerOptions{
 		BaseRouter: r,
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			slog.Warn("invalid request", "method", r.Method, "path", r.URL.Path, "err", err)
 			writeError(w, http.StatusBadRequest, err.Error(), "")
 		},
 	})
+
+	// Docker, Load-Balancer und `curl -I` prüfen teils per HEAD. Ohne eigene Route
+	// landet das im Proxy-Catch-all und liefert 400 (X-User-Id fehlt).
+	r.Path("/health").Methods(http.MethodHead).HandlerFunc(h.GetHealth)
+	r.Path("/ready").Methods(http.MethodHead).HandlerFunc(h.GetReady)
 
 	// Der generierte Catch-all /p/{policy_id}/{proxy_path} matcht in gorilla/mux nur ein
 	// Pfadsegment. Mehrsegmentige Pfade und die Default-Policy ohne Prefix laufen hierüber.
@@ -41,13 +47,6 @@ func New(addr string) *http.Server {
 		ReadTimeout: 10 * time.Second,
 		// Kein WriteTimeout: Proxy-Antworten werden gestreamt und Open WebUI wartet bis zu 300 s.
 		IdleTimeout: 60 * time.Second,
+		ErrorLog:    slog.NewLogLogger(slog.Default().Handler(), slog.LevelWarn),
 	}
-}
-
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
-	})
 }

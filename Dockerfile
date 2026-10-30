@@ -19,4 +19,5 @@ COPY --from=build /out/chatbox /chatbox
 ENV PORT=3000
 EXPOSE 3000
 USER nonroot:nonroot
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD ["/chatbox", "healthcheck"]
 ENTRYPOINT ["/chatbox"]
