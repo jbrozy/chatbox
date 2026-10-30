@@ -4,3 +4,15 @@ generate:
   gorilla-server: true
   models: true
   embedded-spec: true
+output-options:
+  # Alle Modelle behalten, auch die der nicht generierten Operationen.
+  skip-prune: true
+  # Nur Operationen, die der Orchestrator selbst behandelt. Die übrigen
+  # Open-Terminal-Endpunkte laufen über den Catch-all-Proxy zum Pod.
+  include-tags:
+    - System
+    - Discovery
+    - Interaktive Terminals
+    - "Orchestrator: Policies"
+    - "Orchestrator: Instanzen"
+    - "Orchestrator: Proxy"

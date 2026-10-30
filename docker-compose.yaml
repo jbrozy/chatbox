@@ -1,0 +1,35 @@
+services:
+  chatbox:
+    image: ghcr.io/jbrozy/chatbox:latest
+    build: .
+    environment:
+      API_KEY: ${CHATBOX_API_KEY:?CHATBOX_API_KEY in .env setzen}
+      LOG_LEVEL: ${CHATBOX_LOG_LEVEL:-debug}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "/chatbox", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8084:8080"
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      chatbox:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  open-webui:

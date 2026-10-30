@@ -11,34 +11,31 @@ import (
 	"github.com/jbrozy/chatbox/internal/api"
 )
 
-// New baut den HTTP-Server mit allen Routen aus openapi.yaml.
-func New(addr string) *http.Server {
+// New baut den HTTP-Server mit allen Routen aus openapi.json.
+// apiKey ist der Bearer-Key, den Open WebUI bei `auth_type: bearer` mitschickt.
+func New(addr, apiKey string) *http.Server {
 	h := NewHandler()
 
 	r := mux.NewRouter()
-	r.Use(loggingMiddleware)
+	r.Use(loggingMiddleware, authMiddleware(apiKey))
+
+	// Docker, Load-Balancer und `curl -I` prüfen teils per HEAD. Die Route muss vor den
+	// generierten stehen, sonst greift der Catch-all HEAD /{path} und verlangt X-User-Id.
+	r.Path("/health").Methods(http.MethodHead).HandlerFunc(h.GetHealth)
 
 	api.HandlerWithOptions(h, api.GorillaServerOptions{
-		BaseRouter: r,
-		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			slog.Warn("invalid request", "method", r.Method, "path", r.URL.Path, "err", err)
-			writeError(w, http.StatusBadRequest, err.Error(), "")
-		},
+		BaseRouter:       r,
+		ErrorHandlerFunc: writeParamError,
 	})
 
-	// Docker, Load-Balancer und `curl -I` prüfen teils per HEAD. Ohne eigene Route
-	// landet das im Proxy-Catch-all und liefert 400 (X-User-Id fehlt).
-	r.Path("/health").Methods(http.MethodHead).HandlerFunc(h.GetHealth)
-	r.Path("/ready").Methods(http.MethodHead).HandlerFunc(h.GetReady)
-
-	// Der generierte Catch-all /p/{policy_id}/{proxy_path} matcht in gorilla/mux nur ein
-	// Pfadsegment. Mehrsegmentige Pfade und die Default-Policy ohne Prefix laufen hierüber.
+	// Die generierten Catch-alls /{path} und /p/{policy_id}/{path} matchen in gorilla/mux nur
+	// ein Pfadsegment. Mehrsegmentige Pfade wie /files/list laufen hierüber.
 	r.PathPrefix("/p/{policy_id}/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		policyID := mux.Vars(r)["policy_id"]
-		h.proxy(w, r, policyID, strings.TrimPrefix(r.URL.Path, "/p/"+policyID))
+		h.policyProxy(w, r, policyID, strings.TrimPrefix(r.URL.Path, "/p/"+policyID))
 	})
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.proxy(w, r, defaultPolicy, r.URL.Path)
+		h.proxy(w, r, r.URL.Path)
 	})
 
 	return &http.Server{

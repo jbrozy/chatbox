@@ -3,3 +3,7 @@
 .dockerignore
 Dockerfile
 README.md
+.env
+.env.example
+compose.yaml
+.gitignore

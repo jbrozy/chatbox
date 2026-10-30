@@ -18,6 +18,7 @@ import (
 
 func main() {
 	port := envOr("PORT", "3000")
+	apiKey := envOr("API_KEY", "dummy")
 
 	// `chatbox healthcheck` für Docker-HEALTHCHECK: Im distroless-Image gibt es kein curl.
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
@@ -29,9 +30,12 @@ func main() {
 	}
 
 	setupLogger()
+	if apiKey == "dummy" {
+		slog.Warn("API_KEY nicht gesetzt, nutze unsicheren Default \"dummy\"")
+	}
 
 	addr := ":" + port
-	srv := server.New(addr)
+	srv := server.New(addr, apiKey)
 
 	go func() {
 		slog.Info("listening", "addr", addr)
@@ -82,11 +86,11 @@ func healthcheck(url string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}
-	var health api.Health
+	var health api.HealthOpenTerminal
 	if err := json.NewDecoder(resp.Body).Decode(&health); err != nil {
 		return fmt.Errorf("invalid body: %w", err)
 	}
-	if health.Status != "ok" {
+	if health.Status != api.HealthOpenTerminalStatusOk {
 		return fmt.Errorf("status %q", health.Status)
 	}
 	return nil

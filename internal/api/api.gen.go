@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18,267 +19,1201 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gorilla/mux"
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// Defines values for ErrorCode.
+// Defines values for AdminStatusBackend.
 const (
-	ErrorCodeMissingUserId       ErrorCode = "missing_user_id"
-	ErrorCodePolicyNotFound      ErrorCode = "policy_not_found"
-	ErrorCodeProvisioningFailed  ErrorCode = "provisioning_failed"
-	ErrorCodeProvisioningTimeout ErrorCode = "provisioning_timeout"
-	ErrorCodeQuotaExceeded       ErrorCode = "quota_exceeded"
-	ErrorCodeUnauthorized        ErrorCode = "unauthorized"
-	ErrorCodeUpstreamUnreachable ErrorCode = "upstream_unreachable"
-	ErrorCodeUserMismatch        ErrorCode = "user_mismatch"
+	Docker             AdminStatusBackend = "docker"
+	Kubernetes         AdminStatusBackend = "kubernetes"
+	KubernetesOperator AdminStatusBackend = "kubernetes-operator"
 )
 
-// Valid indicates whether the value is a known member of the ErrorCode enum.
-func (e ErrorCode) Valid() bool {
+// Valid indicates whether the value is a known member of the AdminStatusBackend enum.
+func (e AdminStatusBackend) Valid() bool {
 	switch e {
-	case ErrorCodeMissingUserId:
+	case Docker:
 		return true
-	case ErrorCodePolicyNotFound:
+	case Kubernetes:
 		return true
-	case ErrorCodeProvisioningFailed:
-		return true
-	case ErrorCodeProvisioningTimeout:
-		return true
-	case ErrorCodeQuotaExceeded:
-		return true
-	case ErrorCodeUnauthorized:
-		return true
-	case ErrorCodeUpstreamUnreachable:
-		return true
-	case ErrorCodeUserMismatch:
+	case KubernetesOperator:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for PolicyDataEgress.
+// Defines values for AdminStatusStatus.
 const (
-	Cluster  PolicyDataEgress = "cluster"
-	Internet PolicyDataEgress = "internet"
-	None     PolicyDataEgress = "none"
+	AdminStatusStatusTrue AdminStatusStatus = true
 )
 
-// Valid indicates whether the value is a known member of the PolicyDataEgress enum.
-func (e PolicyDataEgress) Valid() bool {
+// Valid indicates whether the value is a known member of the AdminStatusStatus enum.
+func (e AdminStatusStatus) Valid() bool {
 	switch e {
-	case Cluster:
-		return true
-	case Internet:
-		return true
-	case None:
+	case AdminStatusStatusTrue:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for ReadinessStatus.
+// Defines values for DeleteResponseType.
 const (
-	Degraded ReadinessStatus = "degraded"
-	Ok       ReadinessStatus = "ok"
+	DeleteResponseTypeDirectory DeleteResponseType = "directory"
+	DeleteResponseTypeFile      DeleteResponseType = "file"
 )
 
-// Valid indicates whether the value is a known member of the ReadinessStatus enum.
-func (e ReadinessStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the DeleteResponseType enum.
+func (e DeleteResponseType) Valid() bool {
 	switch e {
-	case Degraded:
+	case DeleteResponseTypeDirectory:
 		return true
-	case Ok:
+	case DeleteResponseTypeFile:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for WorkspaceStatus.
+// Defines values for DeletedResponseStatus.
 const (
-	Failed       WorkspaceStatus = "failed"
-	Provisioning WorkspaceStatus = "provisioning"
-	Ready        WorkspaceStatus = "ready"
-	Terminating  WorkspaceStatus = "terminating"
+	Deleted DeletedResponseStatus = "deleted"
 )
 
-// Valid indicates whether the value is a known member of the WorkspaceStatus enum.
-func (e WorkspaceStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the DeletedResponseStatus enum.
+func (e DeletedResponseStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case Deleted:
 		return true
-	case Provisioning:
+	default:
+		return false
+	}
+}
+
+// Defines values for DiffLineType.
+const (
+	Added   DiffLineType = "added"
+	Context DiffLineType = "context"
+	Removed DiffLineType = "removed"
+)
+
+// Valid indicates whether the value is a known member of the DiffLineType enum.
+func (e DiffLineType) Valid() bool {
+	switch e {
+	case Added:
+		return true
+	case Context:
+		return true
+	case Removed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExecuteCellResponseStatus.
+const (
+	ExecuteCellResponseStatusError ExecuteCellResponseStatus = "error"
+	ExecuteCellResponseStatusOk    ExecuteCellResponseStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the ExecuteCellResponseStatus enum.
+func (e ExecuteCellResponseStatus) Valid() bool {
+	switch e {
+	case ExecuteCellResponseStatusError:
+		return true
+	case ExecuteCellResponseStatusOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileEntryType.
+const (
+	FileEntryTypeDirectory FileEntryType = "directory"
+	FileEntryTypeFile      FileEntryType = "file"
+)
+
+// Valid indicates whether the value is a known member of the FileEntryType enum.
+func (e FileEntryType) Valid() bool {
+	switch e {
+	case FileEntryTypeDirectory:
+		return true
+	case FileEntryTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GlobMatchType.
+const (
+	GlobMatchTypeDirectory GlobMatchType = "directory"
+	GlobMatchTypeFile      GlobMatchType = "file"
+)
+
+// Valid indicates whether the value is a known member of the GlobMatchType enum.
+func (e GlobMatchType) Valid() bool {
+	switch e {
+	case GlobMatchTypeDirectory:
+		return true
+	case GlobMatchTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthOpenTerminalStatus.
+const (
+	HealthOpenTerminalStatusOk HealthOpenTerminalStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the HealthOpenTerminalStatus enum.
+func (e HealthOpenTerminalStatus) Valid() bool {
+	switch e {
+	case HealthOpenTerminalStatusOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthTerminalsStatus.
+const (
+	HealthTerminalsStatusTrue HealthTerminalsStatus = true
+)
+
+// Valid indicates whether the value is a known member of the HealthTerminalsStatus enum.
+func (e HealthTerminalsStatus) Valid() bool {
+	switch e {
+	case HealthTerminalsStatusTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KilledResponseStatus.
+const (
+	KilledResponseStatusKilled KilledResponseStatus = "killed"
+)
+
+// Valid indicates whether the value is a known member of the KilledResponseStatus enum.
+func (e KilledResponseStatus) Valid() bool {
+	switch e {
+	case KilledResponseStatusKilled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MatchResultType.
+const (
+	MatchResultTypeDirectory MatchResultType = "directory"
+	MatchResultTypeFile      MatchResultType = "file"
+)
+
+// Valid indicates whether the value is a known member of the MatchResultType enum.
+func (e MatchResultType) Valid() bool {
+	switch e {
+	case MatchResultTypeDirectory:
+		return true
+	case MatchResultTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OkResponseOk.
+const (
+	OkResponseOkTrue OkResponseOk = true
+)
+
+// Valid indicates whether the value is a known member of the OkResponseOk enum.
+func (e OkResponseOk) Valid() bool {
+	switch e {
+	case OkResponseOkTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OutputEntryType.
+const (
+	Output OutputEntryType = "output"
+	Stderr OutputEntryType = "stderr"
+	Stdout OutputEntryType = "stdout"
+)
+
+// Valid indicates whether the value is a known member of the OutputEntryType enum.
+func (e OutputEntryType) Valid() bool {
+	switch e {
+	case Output:
+		return true
+	case Stderr:
+		return true
+	case Stdout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PolicyDataStorageMode.
+const (
+	PerUser   PolicyDataStorageMode = "per-user"
+	Shared    PolicyDataStorageMode = "shared"
+	SharedRwo PolicyDataStorageMode = "shared-rwo"
+)
+
+// Valid indicates whether the value is a known member of the PolicyDataStorageMode enum.
+func (e PolicyDataStorageMode) Valid() bool {
+	switch e {
+	case PerUser:
+		return true
+	case Shared:
+		return true
+	case SharedRwo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProcessStatus.
+const (
+	ProcessStatusDone    ProcessStatus = "done"
+	ProcessStatusKilled  ProcessStatus = "killed"
+	ProcessStatusRunning ProcessStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the ProcessStatus enum.
+func (e ProcessStatus) Valid() bool {
+	switch e {
+	case ProcessStatusDone:
+		return true
+	case ProcessStatusKilled:
+		return true
+	case ProcessStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchResultType.
+const (
+	SearchResultTypeDirectory SearchResultType = "directory"
+	SearchResultTypeFile      SearchResultType = "file"
+)
+
+// Valid indicates whether the value is a known member of the SearchResultType enum.
+func (e SearchResultType) Valid() bool {
+	switch e {
+	case SearchResultTypeDirectory:
+		return true
+	case SearchResultTypeFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SessionStatusResponseStatus.
+const (
+	Busy  SessionStatusResponseStatus = "busy"
+	Ready SessionStatusResponseStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the SessionStatusResponseStatus enum.
+func (e SessionStatusResponseStatus) Valid() bool {
+	switch e {
+	case Busy:
 		return true
 	case Ready:
 		return true
-	case Terminating:
+	default:
+		return false
+	}
+}
+
+// Defines values for StatusOkStatus.
+const (
+	StatusOkStatusOk StatusOkStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the StatusOkStatus enum.
+func (e StatusOkStatus) Valid() bool {
+	switch e {
+	case StatusOkStatusOk:
 		return true
 	default:
 		return false
 	}
 }
 
-// Error defines model for Error.
-type Error struct {
-	// Code [Eigen] Maschinenlesbarer Code
-	Code   *ErrorCode `json:"code,omitempty"`
-	Detail *string    `json:"detail,omitempty"`
+// Defines values for StoppedResponseStatus.
+const (
+	StoppedResponseStatusStopped StoppedResponseStatus = "stopped"
+)
 
-	// Error Kurzbeschreibung
-	Error string `json:"error"`
+// Valid indicates whether the value is a known member of the StoppedResponseStatus enum.
+func (e StoppedResponseStatus) Valid() bool {
+	switch e {
+	case StoppedResponseStatusStopped:
+		return true
+	default:
+		return false
+	}
 }
 
-// ErrorCode [Eigen] Maschinenlesbarer Code
-type ErrorCode string
+// Defines values for TerminalInstanceStatus.
+const (
+	TerminalInstanceStatusMissing TerminalInstanceStatus = "missing"
+	TerminalInstanceStatusRunning TerminalInstanceStatus = "running"
+	TerminalInstanceStatusStopped TerminalInstanceStatus = "stopped"
+)
 
-// Health defines model for Health.
-type Health struct {
+// Valid indicates whether the value is a known member of the TerminalInstanceStatus enum.
+func (e TerminalInstanceStatus) Valid() bool {
+	switch e {
+	case TerminalInstanceStatusMissing:
+		return true
+	case TerminalInstanceStatusRunning:
+		return true
+	case TerminalInstanceStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WsAuthMessageType.
+const (
+	Auth WsAuthMessageType = "auth"
+)
+
+// Valid indicates whether the value is a known member of the WsAuthMessageType enum.
+func (e WsAuthMessageType) Valid() bool {
+	switch e {
+	case Auth:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WsResizeMessageType.
+const (
+	Resize WsResizeMessageType = "resize"
+)
+
+// Valid indicates whether the value is a known member of the WsResizeMessageType enum.
+func (e WsResizeMessageType) Valid() bool {
+	switch e {
+	case Resize:
+		return true
+	default:
+		return false
+	}
+}
+
+// AdminStatus defines model for AdminStatus.
+type AdminStatus struct {
+	ActiveTerminals            int                `json:"active_terminals"`
+	ActiveWebsocketConnections int                `json:"active_websocket_connections"`
+	AllowedImages              string             `json:"allowed_images"`
+	Backend                    AdminStatusBackend `json:"backend"`
+	IdleTimeoutMinutes         int                `json:"idle_timeout_minutes"`
+	Image                      string             `json:"image"`
+	MaxCpu                     string             `json:"max_cpu"`
+	MaxMemory                  string             `json:"max_memory"`
+	MaxStorage                 string             `json:"max_storage"`
+	PolicyCount                int                `json:"policy_count"`
+	Status                     AdminStatusStatus  `json:"status"`
+}
+
+// AdminStatusBackend defines model for AdminStatus.Backend.
+type AdminStatusBackend string
+
+// AdminStatusStatus defines model for AdminStatus.Status.
+type AdminStatusStatus bool
+
+// ArchiveRequest defines model for ArchiveRequest.
+type ArchiveRequest struct {
+	// Paths List of file or directory paths to include in the ZIP archive.
+	Paths []string `json:"paths"`
+}
+
+// CompareFile defines model for CompareFile.
+type CompareFile struct {
+	Name    string   `json:"name"`
+	Notices []string `json:"notices"`
+	Path    string   `json:"path"`
+}
+
+// CompareRequest defines model for CompareRequest.
+type CompareRequest struct {
+	IgnoreWhitespace *bool  `json:"ignore_whitespace,omitempty"`
+	Original         string `json:"original"`
+	Revised          string `json:"revised"`
+}
+
+// CompareResponse defines model for CompareResponse.
+type CompareResponse struct {
+	Additions int         `json:"additions"`
+	Deletions int         `json:"deletions"`
+	Hunks     []DiffHunk  `json:"hunks"`
+	Original  CompareFile `json:"original"`
+	Revised   CompareFile `json:"revised"`
+}
+
+// ContentMatch defines model for ContentMatch.
+type ContentMatch struct {
+	// Column 1-basiert, in UTF-16-Code-Units.
+	Column int    `json:"column"`
+	Line   int    `json:"line"`
+	Text   string `json:"text"`
+}
+
+// CreateSessionRequest defines model for CreateSessionRequest.
+type CreateSessionRequest struct {
+	// Path Absolute path to the .ipynb file.
+	Path string `json:"path"`
+}
+
+// CreateSessionResponse defines model for CreateSessionResponse.
+type CreateSessionResponse struct {
+	Id     string `json:"id"`
+	Kernel string `json:"kernel"`
+
+	// Status Examples: ready
 	Status string `json:"status"`
 }
 
-// Lifecycle [OWUI] Freies JSON, Open WebUI interpretiert es nicht.
-// [Eigen] Vorschlag für die Felder unten. Unbekannte Felder → 400.
-type Lifecycle struct {
-	// KeepVolumeDays PVCs ungenutzter Workspaces werden nach so vielen Tagen gelöscht. 0 = nie.
-	KeepVolumeDays *int `json:"keep_volume_days,omitempty"`
+// CwdResponse defines model for CwdResponse.
+type CwdResponse struct {
+	Cwd  string `json:"cwd"`
+	Home string `json:"home"`
 
-	// MaxLifetimeHours Pod wird spätestens nach dieser Zeit neu gestartet, auch wenn er aktiv ist.
-	MaxLifetimeHours *int `json:"max_lifetime_hours,omitempty"`
-
-	// ProvisionTimeoutSeconds Maximale Wartezeit beim Anlegen. Muss unter dem 300-s-Timeout von Open WebUI liegen.
-	ProvisionTimeoutSeconds *int `json:"provision_timeout_seconds,omitempty"`
+	// Root Fehlt bei `OPEN_TERMINAL_FILE_BROWSER_ROOT=filesystem`.
+	Root *FileBrowserRoot `json:"root,omitempty"`
 }
 
-// LifecycleEnvelope defines model for LifecycleEnvelope.
-type LifecycleEnvelope struct {
-	// Data [OWUI] Freies JSON, Open WebUI interpretiert es nicht.
-	// [Eigen] Vorschlag für die Felder unten. Unbekannte Felder → 400.
-	Data Lifecycle `json:"data"`
+// CwdSetResponse defines model for CwdSetResponse.
+type CwdSetResponse struct {
+	Cwd string `json:"cwd"`
 }
 
-// Policy defines model for Policy.
-type Policy struct {
-	// CreatedAt [Eigen]
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-
-	// Data [OWUI] Felder, die der Admin-Dialog von Open WebUI setzt und wieder liest.
-	// [Eigen] Zusätzliche Felder (unten markiert) pflegst du per API oder YAML. Open WebUI ignoriert sie.
-	// Achtung: Speichert ein Admin die Policy im Dialog, schickt Open WebUI nur seine eigenen Felder.
-	// Der Orchestrator sollte bei PUT deshalb unbekannte, nicht gesendete Eigen-Felder **beibehalten**.
-	Data PolicyData `json:"data"`
-	Id   string     `json:"id"`
-
-	// UpdatedAt [Eigen]
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+// DeleteResponse defines model for DeleteResponse.
+type DeleteResponse struct {
+	Path string             `json:"path"`
+	Type DeleteResponseType `json:"type"`
 }
 
-// PolicyData [OWUI] Felder, die der Admin-Dialog von Open WebUI setzt und wieder liest.
-// [Eigen] Zusätzliche Felder (unten markiert) pflegst du per API oder YAML. Open WebUI ignoriert sie.
-// Achtung: Speichert ein Admin die Policy im Dialog, schickt Open WebUI nur seine eigenen Felder.
-// Der Orchestrator sollte bei PUT deshalb unbekannte, nicht gesendete Eigen-Felder **beibehalten**.
+// DeleteResponseType defines model for DeleteResponse.Type.
+type DeleteResponseType string
+
+// DeletedResponse defines model for DeletedResponse.
+type DeletedResponse struct {
+	Status DeletedResponseStatus `json:"status"`
+}
+
+// DeletedResponseStatus defines model for DeletedResponse.Status.
+type DeletedResponseStatus string
+
+// DiffHunk defines model for DiffHunk.
+type DiffHunk struct {
+	// Header Examples: @@ -1,3 +1,4 @@
+	Header string     `json:"header"`
+	Lines  []DiffLine `json:"lines"`
+}
+
+// DiffLine defines model for DiffLine.
+type DiffLine struct {
+	Content   string `json:"content"`
+	NewNumber *int   `json:"newNumber"`
+	OldNumber *int   `json:"oldNumber"`
+
+	// RevisedContent Nur bei `context`.
+	RevisedContent *string       `json:"revisedContent,omitempty"`
+	Segments       []DiffSegment `json:"segments"`
+	Type           DiffLineType  `json:"type"`
+}
+
+// DiffLineType defines model for DiffLine.Type.
+type DiffLineType string
+
+// DiffSegment defines model for DiffSegment.
+type DiffSegment struct {
+	Changed bool   `json:"changed"`
+	Text    string `json:"text"`
+}
+
+// DisplayFileResponse defines model for DisplayFileResponse.
+type DisplayFileResponse struct {
+	Exists bool   `json:"exists"`
+	Path   string `json:"path"`
+}
+
+// ExecRequest defines model for ExecRequest.
+type ExecRequest struct {
+	// Command Shell command to execute. Supports chaining (&&, ||, ;), pipes (|), and redirections.
+	//
+	// Examples: echo hello, ls -la && whoami
+	Command string `json:"command"`
+
+	// Cwd Working directory for the command. Defaults to the server's current directory if not set.
+	Cwd *string `json:"cwd,omitempty"`
+
+	// Env Extra environment variables merged into the subprocess environment.
+	Env *map[string]string `json:"env,omitempty"`
+}
+
+// ExecuteCellRequest defines model for ExecuteCellRequest.
+type ExecuteCellRequest struct {
+	// CellIndex Zero-based cell index to execute.
+	CellIndex int `json:"cell_index"`
+
+	// Source Override cell source. If omitted, uses the source already in the notebook.
+	Source *string `json:"source,omitempty"`
+}
+
+// ExecuteCellResponse defines model for ExecuteCellResponse.
+type ExecuteCellResponse struct {
+	ExecutionCount *int                      `json:"execution_count,omitempty"`
+	Outputs        *[]map[string]interface{} `json:"outputs,omitempty"`
+	Status         ExecuteCellResponseStatus `json:"status"`
+}
+
+// ExecuteCellResponseStatus defines model for ExecuteCellResponse.Status.
+type ExecuteCellResponseStatus string
+
+// FileBrowserRoot defines model for FileBrowserRoot.
+type FileBrowserRoot struct {
+	// Label Examples: Home
+	Label string `json:"label"`
+	Path  string `json:"path"`
+}
+
+// FileEntry defines model for FileEntry.
+type FileEntry struct {
+	// Modified Änderungszeit als Unix-Zeitstempel (Sekunden, mit Nachkommastellen).
+	Modified float32 `json:"modified"`
+	Name     string  `json:"name"`
+
+	// Size Größe in Bytes (`st_size`).
+	Size     int           `json:"size"`
+	Type     FileEntryType `json:"type"`
+	Writable bool          `json:"writable"`
+}
+
+// FileEntryType defines model for FileEntry.Type.
+type FileEntryType string
+
+// FileListResponse defines model for FileListResponse.
+type FileListResponse struct {
+	// Dir Aufgelöster absoluter Pfad.
+	Dir      string      `json:"dir"`
+	Entries  []FileEntry `json:"entries"`
+	Writable bool        `json:"writable"`
+}
+
+// GlobMatch defines model for GlobMatch.
+type GlobMatch struct {
+	Modified float32 `json:"modified"`
+
+	// Path Relativ zum Suchverzeichnis.
+	Path string        `json:"path"`
+	Size int           `json:"size"`
+	Type GlobMatchType `json:"type"`
+}
+
+// GlobMatchType defines model for GlobMatch.Type.
+type GlobMatchType string
+
+// GlobResponse defines model for GlobResponse.
+type GlobResponse struct {
+	Matches   []GlobMatch `json:"matches"`
+	Path      string      `json:"path"`
+	Pattern   string      `json:"pattern"`
+	Truncated bool        `json:"truncated"`
+}
+
+// GrepMatch defines model for GrepMatch.
+type GrepMatch struct {
+	// Content Nur bei `match_per_line=true`; Zeile ohne Zeilenende.
+	Content *string `json:"content,omitempty"`
+	File    string  `json:"file"`
+
+	// Line Nur bei `match_per_line=true`.
+	Line *int `json:"line,omitempty"`
+}
+
+// GrepResponse defines model for GrepResponse.
+type GrepResponse struct {
+	Matches   []GrepMatch `json:"matches"`
+	Path      string      `json:"path"`
+	Query     string      `json:"query"`
+	Truncated bool        `json:"truncated"`
+}
+
+// HTTPError Standardfehler beider Dienste.
+type HTTPError struct {
+	// Detail Fehlermeldung (FastAPI `HTTPException`).
+	Detail string `json:"detail"`
+}
+
+// HTTPValidationError defines model for HTTPValidationError.
+type HTTPValidationError struct {
+	Detail *[]ValidationError `json:"detail,omitempty"`
+}
+
+// HealthOpenTerminal defines model for HealthOpenTerminal.
+type HealthOpenTerminal struct {
+	Status HealthOpenTerminalStatus `json:"status"`
+}
+
+// HealthOpenTerminalStatus defines model for HealthOpenTerminal.Status.
+type HealthOpenTerminalStatus string
+
+// HealthTerminals defines model for HealthTerminals.
+type HealthTerminals struct {
+	Status HealthTerminalsStatus `json:"status"`
+}
+
+// HealthTerminalsStatus defines model for HealthTerminals.Status.
+type HealthTerminalsStatus bool
+
+// InfoResponse defines model for InfoResponse.
+type InfoResponse struct {
+	Info string `json:"info"`
+}
+
+// InputRequest defines model for InputRequest.
+type InputRequest struct {
+	// Input Text to send to the process's stdin. Include newline characters as needed.
+	Input string `json:"input"`
+}
+
+// KilledResponse defines model for KilledResponse.
+type KilledResponse struct {
+	Status KilledResponseStatus `json:"status"`
+}
+
+// KilledResponseStatus defines model for KilledResponse.Status.
+type KilledResponseStatus string
+
+// LifecycleReset defines model for LifecycleReset.
+type LifecycleReset struct {
+	LastAppliedAt *string `json:"last_applied_at,omitempty"`
+	NextDueAt     *string `json:"next_due_at,omitempty"`
+
+	// Schedule Cron (`0 3 * * *`), `@weekly`, `@monthly` oder ISO-8601-Zeitpunkt (einmalig).
+	//
+	// Examples: 0 3 * * *, @weekly, 2026-12-24T18:00:00
+	Schedule *string `json:"schedule,omitempty"`
+
+	// Timezone Examples: Europe/Berlin
+	Timezone             *string                `json:"timezone,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// MatchFilesResponse defines model for MatchFilesResponse.
+type MatchFilesResponse struct {
+	// NextOffset Offset der nächsten Seite, `null` auf der letzten Seite.
+	NextOffset *int          `json:"next_offset"`
+	Results    []MatchResult `json:"results"`
+}
+
+// MatchResult defines model for MatchResult.
+type MatchResult struct {
+	ContentMatches []ContentMatch `json:"content_matches"`
+	Name           string         `json:"name"`
+
+	// NameMatch true, wenn Name oder relativer Pfad passt.
+	NameMatch    bool            `json:"name_match"`
+	Path         string          `json:"path"`
+	RelativePath string          `json:"relative_path"`
+	Type         MatchResultType `json:"type"`
+}
+
+// MatchResultType defines model for MatchResult.Type.
+type MatchResultType string
+
+// MkdirRequest defines model for MkdirRequest.
+type MkdirRequest struct {
+	// Path Directory path to create. Parent directories are created automatically.
+	Path string `json:"path"`
+}
+
+// MoveRequest defines model for MoveRequest.
+type MoveRequest struct {
+	// Destination Destination path (new location).
+	Destination string `json:"destination"`
+
+	// Source Path to the file or directory to move.
+	Source string `json:"source"`
+}
+
+// MoveResponse defines model for MoveResponse.
+type MoveResponse struct {
+	Destination string `json:"destination"`
+	Source      string `json:"source"`
+}
+
+// OkResponse defines model for OkResponse.
+type OkResponse struct {
+	Ok OkResponseOk `json:"ok"`
+}
+
+// OkResponseOk defines model for OkResponse.Ok.
+type OkResponseOk bool
+
+// OutputEntry defines model for OutputEntry.
+type OutputEntry struct {
+	Data string `json:"data"`
+
+	// Type `output` bei PTY-Ausführung (stdout und stderr gemischt).
+	Type OutputEntryType `json:"type"`
+}
+
+// OutputEntryType `output` bei PTY-Ausführung (stdout und stderr gemischt).
+type OutputEntryType string
+
+// PathResponse defines model for PathResponse.
+type PathResponse struct {
+	Path string `json:"path"`
+}
+
+// PolicyCreate defines model for PolicyCreate.
+type PolicyCreate struct {
+	Data *PolicyData `json:"data,omitempty"`
+	Id   string      `json:"id"`
+}
+
+// PolicyData Alle Felder optional, `null` wird verworfen. **Weitere Felder sind erlaubt** und werden gespeichert (z. B. `pod_template`/`podTemplate` für das Kubernetes-Operator-Backend). Verboten (400): `reset`, `reset_schedule`, `reset_timezone`, `lifecycle`.
 type PolicyData struct {
-	// CpuLimit [OWUI] Kubernetes-Quantity, Default im Dialog `1`.
+	ContainerSecurityContext *map[string]interface{} `json:"container_security_context,omitempty"`
+
+	// CpuLimit Wird auf `TERMINALS_MAX_CPU` begrenzt.
+	//
+	// Examples: 1, 0.5
 	CpuLimit *string `json:"cpu_limit,omitempty"`
 
-	// CpuRequest [Eigen] Default = `cpu_limit`.
-	CpuRequest *string `json:"cpu_request,omitempty"`
+	// Env Zusätzliche Umgebungsvariablen der Instanz. Im Restricted-Modus ist `OPEN_TERMINAL_MULTI_USER=true` verboten.
+	Env *map[string]interface{} `json:"env,omitempty"`
 
-	// Egress [Eigen] Wählt per Pod-Label eine vorbereitete NetworkPolicy aus. Default `internet`.
-	Egress *PolicyDataEgress `json:"egress,omitempty"`
-
-	// Env [OWUI] Zusätzliche Umgebungsvariablen für den Pod. `OPEN_TERMINAL_API_KEY` wird vom Orchestrator überschrieben.
-	Env *map[string]string `json:"env,omitempty"`
-
-	// IdleTimeoutMinutes [OWUI] Pod wird nach so vielen Minuten ohne Request und ohne offene WebSocket-Verbindung gelöscht. Default im Dialog 30.
+	// IdleTimeoutMinutes 0 = nie. Default `TERMINALS_IDLE_TIMEOUT_MINUTES`.
 	IdleTimeoutMinutes *int `json:"idle_timeout_minutes,omitempty"`
 
-	// Image [OWUI] Container-Image. Leer → Default des Orchestrators.
+	// Image Container-Image. Default `TERMINALS_IMAGE`. Muss zu `TERMINALS_ALLOWED_IMAGES` passen.
 	Image *string `json:"image,omitempty"`
 
-	// MaxWorkspacesPerUser [Eigen] Begrenzt Workspaces pro User bei „Per chat“-Contexts. Überschreitung → ältester Idle-Workspace wird entfernt.
-	MaxWorkspacesPerUser *int `json:"max_workspaces_per_user,omitempty"`
+	// MemoryLimit Wird auf `TERMINALS_MAX_MEMORY` begrenzt.
+	//
+	// Examples: 1Gi
+	MemoryLimit        *string                 `json:"memory_limit,omitempty"`
+	PodSecurityContext *map[string]interface{} `json:"pod_security_context,omitempty"`
 
-	// MemoryLimit [OWUI] Kubernetes-Quantity, Default im Dialog `1Gi`.
-	MemoryLimit *string `json:"memory_limit,omitempty"`
+	// Restricted OpenShift/Restricted-Pod-Modus. Default `TERMINALS_KUBERNETES_RESTRICTED`.
+	Restricted *bool `json:"restricted,omitempty"`
 
-	// MemoryRequest [Eigen] Default = `memory_limit`.
-	MemoryRequest *string `json:"memory_request,omitempty"`
-
-	// Storage [OWUI] Größe des PVC. Fehlt das Feld → ephemeral (emptyDir).
+	// Storage Volume-Größe; wird auf `TERMINALS_MAX_STORAGE` begrenzt. Fehlt → flüchtiger Speicher.
+	//
+	// Examples: 5Gi
 	Storage *string `json:"storage,omitempty"`
 
-	// StorageClass [Eigen] StorageClass für das PVC.
-	StorageClass *string `json:"storage_class,omitempty"`
+	// StorageMode Nur Kubernetes. Default `TERMINALS_KUBERNETES_STORAGE_MODE`.
+	StorageMode          *PolicyDataStorageMode `json:"storage_mode,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
-// PolicyDataEgress [Eigen] Wählt per Pod-Label eine vorbereitete NetworkPolicy aus. Default `internet`.
-type PolicyDataEgress string
+// PolicyDataStorageMode defines model for PolicyData.StorageMode.
+type PolicyDataStorageMode string
 
-// Readiness defines model for Readiness.
-type Readiness struct {
-	Checks *map[string]string `json:"checks,omitempty"`
-	Status ReadinessStatus    `json:"status"`
+// PolicyLifecycleData Weitere Felder sind erlaubt und werden gespeichert.
+type PolicyLifecycleData struct {
+	// Reset Geplantes Zurücksetzen der Instanzdaten.
+	Reset                *LifecycleReset        `json:"reset,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
-// ReadinessStatus defines model for Readiness.Status.
-type ReadinessStatus string
+// PolicyLifecycleResponse defines model for PolicyLifecycleResponse.
+type PolicyLifecycleResponse struct {
+	// Data Weitere Felder sind erlaubt und werden gespeichert.
+	Data     PolicyLifecycleData `json:"data"`
+	PolicyId string              `json:"policy_id"`
+}
 
-// RefreshRequest [OWUI] Body wie von Open WebUI gesendet.
+// PolicyResponse defines model for PolicyResponse.
+type PolicyResponse struct {
+	// CreatedAt `str(datetime)` in UTC ohne Zeitzone, z. B. `2026-10-30 16:15:01.123456`.
+	CreatedAt *string `json:"created_at,omitempty"`
+
+	// Data Gespeicherte, begrenzte `PolicyData`.
+	Data      map[string]interface{} `json:"data"`
+	Id        string                 `json:"id"`
+	UpdatedAt *string                `json:"updated_at,omitempty"`
+}
+
+// PortInfo defines model for PortInfo.
+type PortInfo struct {
+	Pid     *int    `json:"pid"`
+	Port    int     `json:"port"`
+	Process *string `json:"process"`
+}
+
+// PortsResponse defines model for PortsResponse.
+type PortsResponse struct {
+	Ports []PortInfo `json:"ports"`
+}
+
+// ProcessOutputResponse defines model for ProcessOutputResponse.
+type ProcessOutputResponse struct {
+	Command string `json:"command"`
+
+	// Cwd Nur in der Antwort von `run_command`.
+	Cwd *string `json:"cwd,omitempty"`
+
+	// ExitCode `null`, solange der Prozess läuft.
+	ExitCode *int `json:"exit_code"`
+
+	// Id Format `YYYYMMDD-HHMMSS-<6 hex>`.
+	//
+	// Examples: 20261030-171501-a1b2c3
+	Id string `json:"id"`
+
+	// LogPath JSONL-Logdatei unter `$OPEN_TERMINAL_LOG_DIR/processes/`.
+	LogPath *string `json:"log_path"`
+
+	// NextOffset Absoluter Index nach dem letzten Eintrag; als `offset` für den nächsten Abruf verwenden.
+	NextOffset int           `json:"next_offset"`
+	Output     []OutputEntry `json:"output"`
+	Status     ProcessStatus `json:"status"`
+
+	// Truncated true, wenn wegen `tail` oder Log-Rotation Einträge fehlen.
+	Truncated bool `json:"truncated"`
+}
+
+// ProcessStatus defines model for ProcessStatus.
+type ProcessStatus string
+
+// ProcessSummary defines model for ProcessSummary.
+type ProcessSummary struct {
+	Command string `json:"command"`
+
+	// ExitCode `null`, solange der Prozess läuft.
+	ExitCode *int `json:"exit_code"`
+
+	// Id Format `YYYYMMDD-HHMMSS-<6 hex>`.
+	//
+	// Examples: 20261030-171501-a1b2c3
+	Id string `json:"id"`
+
+	// LogPath JSONL-Logdatei unter `$OPEN_TERMINAL_LOG_DIR/processes/`.
+	LogPath *string       `json:"log_path"`
+	Status  ProcessStatus `json:"status"`
+}
+
+// ProxyError Fehler des Terminals-Proxys bei Problemen mit der Instanz.
+type ProxyError struct {
+	Error string `json:"error"`
+}
+
+// ReadFileResponse defines model for ReadFileResponse.
+type ReadFileResponse struct {
+	// Content Text (bzw. extrahierter Dokumenttext) im angefragten Zeilenbereich.
+	Content string `json:"content"`
+
+	// Path Aufgelöster absoluter Pfad.
+	Path string `json:"path"`
+
+	// TotalLines Gesamtzahl der Zeilen der Datei.
+	TotalLines int `json:"total_lines"`
+}
+
+// RefreshRequest defines model for RefreshRequest.
 type RefreshRequest struct {
-	// OnlyIdle Nur Workspaces ohne aktive WebSocket-Verbindung und ohne Request seit 60 s [Eigen].
-	OnlyIdle bool `json:"only_idle"`
-
-	// PolicyId Nur diese Policy. Fehlt → alle.
-	PolicyId *string `json:"policy_id,omitempty"`
-
-	// Reset [Eigen] true → PVC mitlöschen (Workspace startet leer).
-	Reset bool `json:"reset"`
-
-	// UserId Nur diesen User. Fehlt → alle.
-	UserId *string `json:"user_id,omitempty"`
+	ContextId *string `json:"context_id,omitempty"`
+	OnlyIdle  *bool   `json:"only_idle,omitempty"`
+	PolicyId  *string `json:"policy_id,omitempty"`
+	Reset     *bool   `json:"reset,omitempty"`
+	UserId    *string `json:"user_id,omitempty"`
 }
 
 // RefreshResponse defines model for RefreshResponse.
 type RefreshResponse struct {
-	// Refreshed [OWUI] Anzahl betroffener Workspaces, wird im Toast angezeigt.
+	// Matched Instanzen, auf die der Filter passt.
+	Matched int `json:"matched"`
+
+	// Refreshed Abgebaute Instanzen.
 	Refreshed int `json:"refreshed"`
+
+	// Reset Davon zusätzlich zurückgesetzt (Daten gelöscht).
+	Reset int `json:"reset"`
+
+	// SkippedActive Wegen `only_idle` übersprungen.
+	SkippedActive int `json:"skipped_active"`
 }
+
+// ReplaceRequest defines model for ReplaceRequest.
+type ReplaceRequest struct {
+	// Path Path to the file to modify.
+	Path string `json:"path"`
+
+	// Replacements List of find-and-replace operations to apply sequentially.
+	Replacements []ReplacementChunk `json:"replacements"`
+}
+
+// ReplacementChunk defines model for ReplacementChunk.
+type ReplacementChunk struct {
+	// AllowMultiple If true, replaces all occurrences. If false, errors when multiple matches are found.
+	AllowMultiple *bool `json:"allow_multiple,omitempty"`
+
+	// EndLine Narrow the search to lines at or before this (1-indexed).
+	EndLine *int `json:"end_line,omitempty"`
+
+	// Replacement Content to replace the target with.
+	Replacement string `json:"replacement"`
+
+	// StartLine Narrow the search to lines at or after this (1-indexed).
+	StartLine *int `json:"start_line,omitempty"`
+
+	// Target Exact string to find. Must match precisely, including whitespace.
+	Target string `json:"target"`
+}
+
+// SearchFilesResponse defines model for SearchFilesResponse.
+type SearchFilesResponse struct {
+	Results []SearchResult `json:"results"`
+}
+
+// SearchResult defines model for SearchResult.
+type SearchResult struct {
+	Modified float32          `json:"modified"`
+	Name     string           `json:"name"`
+	Path     string           `json:"path"`
+	Size     int              `json:"size"`
+	Type     SearchResultType `json:"type"`
+}
+
+// SearchResultType defines model for SearchResult.Type.
+type SearchResultType string
+
+// ServerConfig defines model for ServerConfig.
+type ServerConfig struct {
+	Features struct {
+		// Notebooks `OPEN_TERMINAL_ENABLE_NOTEBOOKS`
+		Notebooks bool `json:"notebooks"`
+
+		// System `OPEN_TERMINAL_ENABLE_SYSTEM_PROMPT`
+		System bool `json:"system"`
+
+		// Terminal `OPEN_TERMINAL_ENABLE_TERMINAL`
+		Terminal bool `json:"terminal"`
+	} `json:"features"`
+}
+
+// SessionStatusResponse defines model for SessionStatusResponse.
+type SessionStatusResponse struct {
+	Id     string                      `json:"id"`
+	Kernel string                      `json:"kernel"`
+	Path   string                      `json:"path"`
+	Status SessionStatusResponseStatus `json:"status"`
+}
+
+// SessionStatusResponseStatus defines model for SessionStatusResponse.Status.
+type SessionStatusResponseStatus string
+
+// SkillReadResponse defines model for SkillReadResponse.
+type SkillReadResponse struct {
+	// Content `SKILL.md` ohne Frontmatter.
+	Content     string `json:"content"`
+	Description string `json:"description"`
+
+	// Id `terminal:<url-kodierter Name>`
+	Id string `json:"id"`
+
+	// Location Pfad zur `SKILL.md`.
+	Location  string   `json:"location"`
+	Name      string   `json:"name"`
+	Resources []string `json:"resources"`
+
+	// Scope Examples: global
+	Scope  string  `json:"scope"`
+	Source *string `json:"source,omitempty"`
+}
+
+// SkillSummary defines model for SkillSummary.
+type SkillSummary struct {
+	Description string `json:"description"`
+
+	// Id `terminal:<url-kodierter Name>`
+	Id string `json:"id"`
+
+	// Location Pfad zur `SKILL.md`.
+	Location string `json:"location"`
+	Name     string `json:"name"`
+
+	// Scope Examples: global
+	Scope  string  `json:"scope"`
+	Source *string `json:"source,omitempty"`
+}
+
+// StatusOk defines model for StatusOk.
+type StatusOk struct {
+	Status StatusOkStatus `json:"status"`
+}
+
+// StatusOkStatus defines model for StatusOk.Status.
+type StatusOkStatus string
+
+// StopRequest defines model for StopRequest.
+type StopRequest struct {
+	ContextId *string `json:"context_id,omitempty"`
+	PolicyId  *string `json:"policy_id,omitempty"`
+	UserId    string  `json:"user_id"`
+}
+
+// StopResponse defines model for StopResponse.
+type StopResponse struct {
+	Matched       int `json:"matched"`
+	SkippedActive int `json:"skipped_active"`
+	Stopped       int `json:"stopped"`
+}
+
+// StoppedResponse defines model for StoppedResponse.
+type StoppedResponse struct {
+	Status StoppedResponseStatus `json:"status"`
+}
+
+// StoppedResponseStatus defines model for StoppedResponse.Status.
+type StoppedResponseStatus string
 
 // SystemPrompt defines model for SystemPrompt.
 type SystemPrompt struct {
-	Prompt *string `json:"prompt,omitempty"`
+	Prompt string `json:"prompt"`
 }
 
-// TerminalConfig [OT] Antwort von `GET /api/config`.
-type TerminalConfig struct {
-	Features *struct {
-		Notebooks *bool `json:"notebooks,omitempty"`
-		System    *bool `json:"system,omitempty"`
-		Terminal  *bool `json:"terminal,omitempty"`
-	} `json:"features,omitempty"`
+// TerminalError Fehlerform der Terminal-Session-Endpunkte von Open Terminal.
+type TerminalError struct {
+	Error string `json:"error"`
 }
 
-// Workspace [Eigen]
-type Workspace struct {
-	ContextId      string          `json:"context_id"`
-	CreatedAt      *time.Time      `json:"created_at,omitempty"`
-	LastActivityAt *time.Time      `json:"last_activity_at,omitempty"`
-	OpenWebsockets *int            `json:"open_websockets,omitempty"`
-	PodName        *string         `json:"pod_name,omitempty"`
-	PolicyId       string          `json:"policy_id"`
-	Status         WorkspaceStatus `json:"status"`
-	UserId         string          `json:"user_id"`
+// TerminalInstance defines model for TerminalInstance.
+type TerminalInstance struct {
+	// ContextId Examples: default, chat:6f1c…, automation:42
+	ContextId          string                 `json:"context_id"`
+	Host               string                 `json:"host"`
+	IdleSeconds        *int                   `json:"idle_seconds"`
+	IdleTimeoutMinutes int                    `json:"idle_timeout_minutes"`
+	InstanceId         string                 `json:"instance_id"`
+	InstanceName       string                 `json:"instance_name"`
+	LastActiveAt       *time.Time             `json:"last_active_at"`
+	PolicyId           string                 `json:"policy_id"`
+	Port               *int                   `json:"port"`
+	Status             TerminalInstanceStatus `json:"status"`
+	UserId             string                 `json:"user_id"`
 }
 
-// WorkspaceStatus defines model for Workspace.Status.
-type WorkspaceStatus string
+// TerminalInstanceStatus defines model for TerminalInstance.Status.
+type TerminalInstanceStatus string
 
-// PolicyId defines model for PolicyId.
-type PolicyId = string
+// TerminalSession defines model for TerminalSession.
+type TerminalSession struct {
+	// CreatedAt ISO-8601 UTC mit `Z`, z. B. `2026-10-30T16:15:01.123456Z`.
+	CreatedAt string `json:"created_at"`
 
-// SessionId defines model for SessionId.
-type SessionId = string
+	// Id 8 Zeichen (Präfix einer UUID4).
+	Id  string `json:"id"`
+	Pid int    `json:"pid"`
+}
+
+// UploadForm defines model for UploadForm.
+type UploadForm struct {
+	// File Hochzuladende Datei; Name aus dem Multipart-`filename`.
+	File openapi_types.File `json:"file"`
+}
+
+// UploadResponse defines model for UploadResponse.
+type UploadResponse struct {
+	Path string `json:"path"`
+	Size int    `json:"size"`
+}
+
+// UserTerminalOutput defines model for UserTerminalOutput.
+type UserTerminalOutput struct {
+	// Output Letzte 64 KiB Rohausgabe.
+	Output string `json:"output"`
+}
+
+// ValidationError defines model for ValidationError.
+type ValidationError struct {
+	// Ctx Zusatzinfos zur Regel, z. B. `{"ge": 1}`.
+	Ctx *map[string]interface{} `json:"ctx,omitempty"`
+
+	// Input Ungültiger Eingabewert (Pydantic v2).
+	Input interface{}                `json:"input,omitempty"`
+	Loc   []ValidationError_Loc_Item `json:"loc"`
+	Msg   string                     `json:"msg"`
+	Type  string                     `json:"type"`
+}
+
+// ValidationErrorLoc0 defines model for ValidationError.Loc.0.
+type ValidationErrorLoc0 = string
+
+// ValidationErrorLoc1 defines model for ValidationError.Loc.1.
+type ValidationErrorLoc1 = int
+
+// ValidationError_Loc_Item defines model for ValidationError.loc.Item.
+type ValidationError_Loc_Item struct {
+	union json.RawMessage
+}
+
+// WriteFileResponse defines model for WriteFileResponse.
+type WriteFileResponse struct {
+	Path string `json:"path"`
+
+	// Size Bytes (UTF-8).
+	Size int `json:"size"`
+}
+
+// WriteRequest defines model for WriteRequest.
+type WriteRequest struct {
+	// Content Text content to write to the file.
+	Content string `json:"content"`
+
+	// Path Absolute or relative path to write to. Parent directories are created automatically.
+	Path string `json:"path"`
+}
+
+// WsAuthMessage defines model for WsAuthMessage.
+type WsAuthMessage struct {
+	// ChatId Optional; Ersatz für `X-Session-Id`.
+	ChatId *string           `json:"chat_id,omitempty"`
+	Token  string            `json:"token"`
+	Type   WsAuthMessageType `json:"type"`
+}
+
+// WsAuthMessageType defines model for WsAuthMessage.Type.
+type WsAuthMessageType string
+
+// WsResizeMessage defines model for WsResizeMessage.
+type WsResizeMessage struct {
+	Cols *int                `json:"cols,omitempty"`
+	Rows *int                `json:"rows,omitempty"`
+	Type WsResizeMessageType `json:"type"`
+}
+
+// WsResizeMessageType defines model for WsResizeMessage.Type.
+type WsResizeMessageType string
 
 // XSessionId defines model for XSessionId.
 type XSessionId = string
@@ -289,270 +1224,914 @@ type XTerminalContextId = string
 // XUserId defines model for XUserId.
 type XUserId = string
 
-// XUserIdOptional defines model for XUserIdOptional.
-type XUserIdOptional = string
+// XUserIdRequired defines model for XUserIdRequired.
+type XUserIdRequired = string
 
-// BadGateway defines model for BadGateway.
-type BadGateway = Error
+// Proxy400 Standardfehler beider Dienste.
+type Proxy400 = HTTPError
 
-// BadRequest defines model for BadRequest.
-type BadRequest = Error
+// Proxy401 Standardfehler beider Dienste.
+type Proxy401 = HTTPError
 
-// Forbidden defines model for Forbidden.
-type Forbidden = Error
+// Proxy403 Standardfehler beider Dienste.
+type Proxy403 = HTTPError
 
-// NotFound defines model for NotFound.
-type NotFound = Error
+// Proxy404 Standardfehler beider Dienste.
+type Proxy404 = HTTPError
 
-// ProvisioningTimeout defines model for ProvisioningTimeout.
-type ProvisioningTimeout = Error
+// Proxy422 defines model for Proxy422.
+type Proxy422 = HTTPValidationError
 
-// Unauthorized defines model for Unauthorized.
-type Unauthorized = Error
+// Proxy502 Fehler des Terminals-Proxys bei Problemen mit der Instanz.
+type Proxy502 = ProxyError
 
-// GetServerConfigDefaultParams defines parameters for GetServerConfigDefault.
-type GetServerConfigDefaultParams struct {
-	// XUserId [OWUI] Bei Discovery-Requests entweder fehlend oder `system`.
-	XUserId *XUserIdOptional `json:"X-User-Id,omitempty"`
+// Proxy504 Fehler des Terminals-Proxys bei Problemen mit der Instanz.
+type Proxy504 = ProxyError
+
+// GetApiConfigParams defines parameters for GetApiConfig.
+type GetApiConfigParams struct {
+	// XUserId Open-WebUI-User-ID. **Open Terminal:** Teil der Eigentümerschaft von Prozessen, Terminals und Notebooks (fehlend = leerer String); im Multi-User-Modus (`OPEN_TERMINAL_MULTI_USER`) Pflicht für alle Dateioperationen (fehlt → 400 `X-User-Id is required in multi-user mode`), wählt bzw. legt den Linux-User an.
+	XUserId *XUserId `json:"X-User-Id,omitempty"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 }
 
-// TerminalWebSocketDefaultParams defines parameters for TerminalWebSocketDefault.
-type TerminalWebSocketDefaultParams struct {
-	// UserId [OWUI] Identisch mit `X-User-Id`. [Eigen] Bei Abweichung mit 4003 schließen.
-	UserId string `form:"user_id" json:"user_id"`
+// GetApiTerminalsParams defines parameters for GetApiTerminals.
+type GetApiTerminalsParams struct {
+	// XUserId Open-WebUI-User-ID. **Open Terminal:** Teil der Eigentümerschaft von Prozessen, Terminals und Notebooks (fehlend = leerer String); im Multi-User-Modus (`OPEN_TERMINAL_MULTI_USER`) Pflicht für alle Dateioperationen (fehlt → 400 `X-User-Id is required in multi-user mode`), wählt bzw. legt den Linux-User an.
+	XUserId *XUserId `json:"X-User-Id,omitempty"`
 
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+}
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+// PostApiTerminalsParams defines parameters for PostApiTerminals.
+type PostApiTerminalsParams struct {
+	// XUserId Open-WebUI-User-ID. **Open Terminal:** Teil der Eigentümerschaft von Prozessen, Terminals und Notebooks (fehlend = leerer String); im Multi-User-Modus (`OPEN_TERMINAL_MULTI_USER`) Pflicht für alle Dateioperationen (fehlt → 400 `X-User-Id is required in multi-user mode`), wählt bzw. legt den Linux-User an.
+	XUserId *XUserId `json:"X-User-Id,omitempty"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+}
+
+// DeleteApiTerminalsSessionIdParams defines parameters for DeleteApiTerminalsSessionId.
+type DeleteApiTerminalsSessionIdParams struct {
+	// XUserId Open-WebUI-User-ID. **Open Terminal:** Teil der Eigentümerschaft von Prozessen, Terminals und Notebooks (fehlend = leerer String); im Multi-User-Modus (`OPEN_TERMINAL_MULTI_USER`) Pflicht für alle Dateioperationen (fehlt → 400 `X-User-Id is required in multi-user mode`), wählt bzw. legt den Linux-User an.
+	XUserId *XUserId `json:"X-User-Id,omitempty"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+}
+
+// GetApiTerminalsSessionIdParams defines parameters for GetApiTerminalsSessionId.
+type GetApiTerminalsSessionIdParams struct {
+	// UserId Nur Terminals-WebSocket: User-ID. Fehlt sie → Close 4002.
+	UserId *string `form:"user_id,omitempty" json:"user_id,omitempty"`
+
+	// ContextId Nur Terminals-WebSocket: Kontext, falls kein `X-Terminal-Context-Id`-Header.
+	ContextId *string `form:"context_id,omitempty" json:"context_id,omitempty"`
+
+	// XUserId Open-WebUI-User-ID. **Open Terminal:** Teil der Eigentümerschaft von Prozessen, Terminals und Notebooks (fehlend = leerer String); im Multi-User-Modus (`OPEN_TERMINAL_MULTI_USER`) Pflicht für alle Dateioperationen (fehlt → 400 `X-User-Id is required in multi-user mode`), wählt bzw. legt den Linux-User an.
+	XUserId *XUserId `json:"X-User-Id,omitempty"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
-	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
-	Upgrade            string              `json:"Upgrade"`
-}
-
-// ListWorkspacesParams defines parameters for ListWorkspaces.
-type ListWorkspacesParams struct {
-	PolicyId *string `form:"policy_id,omitempty" json:"policy_id,omitempty"`
-	UserId   *string `form:"user_id,omitempty" json:"user_id,omitempty"`
-}
-
-// GetServerConfigForPolicyParams defines parameters for GetServerConfigForPolicy.
-type GetServerConfigForPolicyParams struct {
-	// XUserId [OWUI] Bei Discovery-Requests entweder fehlend oder `system`.
-	XUserId *XUserIdOptional `json:"X-User-Id,omitempty"`
-}
-
-// TerminalWebSocketForPolicyParams defines parameters for TerminalWebSocketForPolicy.
-type TerminalWebSocketForPolicyParams struct {
-	UserId string `form:"user_id" json:"user_id"`
-
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
-
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
-	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
-
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
-	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
-	Upgrade            string              `json:"Upgrade"`
-}
-
-// GetSystemPromptForPolicyParams defines parameters for GetSystemPromptForPolicy.
-type GetSystemPromptForPolicyParams struct {
-	// XUserId [OWUI] Bei Discovery-Requests entweder fehlend oder `system`.
-	XUserId *XUserIdOptional `json:"X-User-Id,omitempty"`
-}
-
-// DeletePPolicyIdProxyPathParams defines parameters for DeletePPolicyIdProxyPath.
-type DeletePPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
-
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
-	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
-
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// GetPPolicyIdProxyPathParams defines parameters for GetPPolicyIdProxyPath.
-type GetPPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+// GetHealth200JSONResponseBody defines parameters for GetHealth.
+type GetHealth200JSONResponseBody struct {
+	union json.RawMessage
+}
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+// GetPPolicyIdApiTerminalsSessionIdParams defines parameters for GetPPolicyIdApiTerminalsSessionId.
+type GetPPolicyIdApiTerminalsSessionIdParams struct {
+	// UserId User-ID. Fehlt sie → Close 4002.
+	UserId *string `form:"user_id,omitempty" json:"user_id,omitempty"`
+
+	// ContextId Kontext, falls kein `X-Terminal-Context-Id`-Header.
+	ContextId *string `form:"context_id,omitempty" json:"context_id,omitempty"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// HeadPPolicyIdProxyPathParams defines parameters for HeadPPolicyIdProxyPath.
-type HeadPPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+// DeletePPolicyIdPathParams defines parameters for DeletePPolicyIdPath.
+type DeletePPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// OptionsPPolicyIdProxyPathParams defines parameters for OptionsPPolicyIdProxyPath.
-type OptionsPPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+// GetPPolicyIdPathParams defines parameters for GetPPolicyIdPath.
+type GetPPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// PatchPPolicyIdProxyPathParams defines parameters for PatchPPolicyIdProxyPath.
-type PatchPPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+// HeadPPolicyIdPathParams defines parameters for HeadPPolicyIdPath.
+type HeadPPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// PostPPolicyIdProxyPathParams defines parameters for PostPPolicyIdProxyPath.
-type PostPPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+// OptionsPPolicyIdPathParams defines parameters for OptionsPPolicyIdPath.
+type OptionsPPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// PutPPolicyIdProxyPathParams defines parameters for PutPPolicyIdProxyPath.
-type PutPPolicyIdProxyPathParams struct {
-	// XUserId [OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht.
-	XUserId XUserId `json:"X-User-Id"`
+// PatchPPolicyIdPathParams defines parameters for PatchPPolicyIdPath.
+type PatchPPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
 
-	// XSessionId [OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht.
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
 	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-	// XTerminalContextId [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
-	// „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
-	// Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
 	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
 }
 
-// UpsertPolicyJSONRequestBody defines body for UpsertPolicy for application/json ContentType.
-type UpsertPolicyJSONRequestBody = PolicyData
+// PostPPolicyIdPathParams defines parameters for PostPPolicyIdPath.
+type PostPPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
 
-// PutLifecycleJSONRequestBody defines body for PutLifecycle for application/json ContentType.
-type PutLifecycleJSONRequestBody = Lifecycle
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
 
-// RefreshWorkspacesJSONRequestBody defines body for RefreshWorkspaces for application/json ContentType.
-type RefreshWorkspacesJSONRequestBody = RefreshRequest
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// PutPPolicyIdPathParams defines parameters for PutPPolicyIdPath.
+type PutPPolicyIdPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// GetSystemParams defines parameters for GetSystem.
+type GetSystemParams struct {
+	// XUserId Open-WebUI-User-ID. **Open Terminal:** Teil der Eigentümerschaft von Prozessen, Terminals und Notebooks (fehlend = leerer String); im Multi-User-Modus (`OPEN_TERMINAL_MULTI_USER`) Pflicht für alle Dateioperationen (fehlt → 400 `X-User-Id is required in multi-user mode`), wählt bzw. legt den Linux-User an.
+	XUserId *XUserId `json:"X-User-Id,omitempty"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+}
+
+// DeletePathParams defines parameters for DeletePath.
+type DeletePathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// GetPathParams defines parameters for GetPath.
+type GetPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// HeadPathParams defines parameters for HeadPath.
+type HeadPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// OptionsPathParams defines parameters for OptionsPath.
+type OptionsPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// PatchPathParams defines parameters for PatchPath.
+type PatchPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// PostPathParams defines parameters for PostPath.
+type PostPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// PutPathParams defines parameters for PutPath.
+type PutPathParams struct {
+	// XUserId **Terminals:** Pflicht für den Proxy. Bestimmt die Instanz; wird **nicht** an die Instanz weitergereicht.
+	XUserId XUserIdRequired `json:"X-User-Id"`
+
+	// XSessionId Chat-ID aus Open WebUI. **Open Terminal:** Schlüssel für das Session-Arbeitsverzeichnis und Teil der Eigentümerschaft von Prozessen und Terminals. **Terminals:** unverändert weitergereicht.
+	XSessionId *XSessionId `json:"X-Session-Id,omitempty"`
+
+	// XTerminalContextId **Terminals:** wählt neben User und Policy die Instanz. Open WebUI setzt ihn bei „Terminal Contexts: Per chat/Per automation“. Leer → `default`. Wird nicht weitergereicht.
+	XTerminalContextId *XTerminalContextId `json:"X-Terminal-Context-Id,omitempty"`
+}
+
+// PostApiV1PoliciesJSONRequestBody defines body for PostApiV1Policies for application/json ContentType.
+type PostApiV1PoliciesJSONRequestBody = PolicyCreate
+
+// PutApiV1PoliciesPolicyIdJSONRequestBody defines body for PutApiV1PoliciesPolicyId for application/json ContentType.
+type PutApiV1PoliciesPolicyIdJSONRequestBody = PolicyData
+
+// PutApiV1PoliciesPolicyIdLifecycleJSONRequestBody defines body for PutApiV1PoliciesPolicyIdLifecycle for application/json ContentType.
+type PutApiV1PoliciesPolicyIdLifecycleJSONRequestBody = PolicyLifecycleData
+
+// PostApiV1TerminalsRefreshJSONRequestBody defines body for PostApiV1TerminalsRefresh for application/json ContentType.
+type PostApiV1TerminalsRefreshJSONRequestBody = RefreshRequest
+
+// PostApiV1TerminalsStopJSONRequestBody defines body for PostApiV1TerminalsStop for application/json ContentType.
+type PostApiV1TerminalsStopJSONRequestBody = StopRequest
+
+// Getter for additional properties for LifecycleReset. Returns the specified
+// element and whether it was found
+func (a LifecycleReset) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for LifecycleReset
+func (a *LifecycleReset) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for LifecycleReset to handle AdditionalProperties
+func (a *LifecycleReset) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["last_applied_at"]; found {
+		err = json.Unmarshal(raw, &a.LastAppliedAt)
+		if err != nil {
+			return fmt.Errorf("error reading 'last_applied_at': %w", err)
+		}
+		delete(object, "last_applied_at")
+	}
+
+	if raw, found := object["next_due_at"]; found {
+		err = json.Unmarshal(raw, &a.NextDueAt)
+		if err != nil {
+			return fmt.Errorf("error reading 'next_due_at': %w", err)
+		}
+		delete(object, "next_due_at")
+	}
+
+	if raw, found := object["schedule"]; found {
+		err = json.Unmarshal(raw, &a.Schedule)
+		if err != nil {
+			return fmt.Errorf("error reading 'schedule': %w", err)
+		}
+		delete(object, "schedule")
+	}
+
+	if raw, found := object["timezone"]; found {
+		err = json.Unmarshal(raw, &a.Timezone)
+		if err != nil {
+			return fmt.Errorf("error reading 'timezone': %w", err)
+		}
+		delete(object, "timezone")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for LifecycleReset to handle AdditionalProperties
+func (a LifecycleReset) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.LastAppliedAt != nil {
+		object["last_applied_at"], err = json.Marshal(a.LastAppliedAt)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'last_applied_at': %w", err)
+		}
+	}
+
+	if a.NextDueAt != nil {
+		object["next_due_at"], err = json.Marshal(a.NextDueAt)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'next_due_at': %w", err)
+		}
+	}
+
+	if a.Schedule != nil {
+		object["schedule"], err = json.Marshal(a.Schedule)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schedule': %w", err)
+		}
+	}
+
+	if a.Timezone != nil {
+		object["timezone"], err = json.Marshal(a.Timezone)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'timezone': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for PolicyData. Returns the specified
+// element and whether it was found
+func (a PolicyData) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for PolicyData
+func (a *PolicyData) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for PolicyData to handle AdditionalProperties
+func (a *PolicyData) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["container_security_context"]; found {
+		err = json.Unmarshal(raw, &a.ContainerSecurityContext)
+		if err != nil {
+			return fmt.Errorf("error reading 'container_security_context': %w", err)
+		}
+		delete(object, "container_security_context")
+	}
+
+	if raw, found := object["cpu_limit"]; found {
+		err = json.Unmarshal(raw, &a.CpuLimit)
+		if err != nil {
+			return fmt.Errorf("error reading 'cpu_limit': %w", err)
+		}
+		delete(object, "cpu_limit")
+	}
+
+	if raw, found := object["env"]; found {
+		err = json.Unmarshal(raw, &a.Env)
+		if err != nil {
+			return fmt.Errorf("error reading 'env': %w", err)
+		}
+		delete(object, "env")
+	}
+
+	if raw, found := object["idle_timeout_minutes"]; found {
+		err = json.Unmarshal(raw, &a.IdleTimeoutMinutes)
+		if err != nil {
+			return fmt.Errorf("error reading 'idle_timeout_minutes': %w", err)
+		}
+		delete(object, "idle_timeout_minutes")
+	}
+
+	if raw, found := object["image"]; found {
+		err = json.Unmarshal(raw, &a.Image)
+		if err != nil {
+			return fmt.Errorf("error reading 'image': %w", err)
+		}
+		delete(object, "image")
+	}
+
+	if raw, found := object["memory_limit"]; found {
+		err = json.Unmarshal(raw, &a.MemoryLimit)
+		if err != nil {
+			return fmt.Errorf("error reading 'memory_limit': %w", err)
+		}
+		delete(object, "memory_limit")
+	}
+
+	if raw, found := object["pod_security_context"]; found {
+		err = json.Unmarshal(raw, &a.PodSecurityContext)
+		if err != nil {
+			return fmt.Errorf("error reading 'pod_security_context': %w", err)
+		}
+		delete(object, "pod_security_context")
+	}
+
+	if raw, found := object["restricted"]; found {
+		err = json.Unmarshal(raw, &a.Restricted)
+		if err != nil {
+			return fmt.Errorf("error reading 'restricted': %w", err)
+		}
+		delete(object, "restricted")
+	}
+
+	if raw, found := object["storage"]; found {
+		err = json.Unmarshal(raw, &a.Storage)
+		if err != nil {
+			return fmt.Errorf("error reading 'storage': %w", err)
+		}
+		delete(object, "storage")
+	}
+
+	if raw, found := object["storage_mode"]; found {
+		err = json.Unmarshal(raw, &a.StorageMode)
+		if err != nil {
+			return fmt.Errorf("error reading 'storage_mode': %w", err)
+		}
+		delete(object, "storage_mode")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for PolicyData to handle AdditionalProperties
+func (a PolicyData) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.ContainerSecurityContext != nil {
+		object["container_security_context"], err = json.Marshal(a.ContainerSecurityContext)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'container_security_context': %w", err)
+		}
+	}
+
+	if a.CpuLimit != nil {
+		object["cpu_limit"], err = json.Marshal(a.CpuLimit)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'cpu_limit': %w", err)
+		}
+	}
+
+	if a.Env != nil {
+		object["env"], err = json.Marshal(a.Env)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'env': %w", err)
+		}
+	}
+
+	if a.IdleTimeoutMinutes != nil {
+		object["idle_timeout_minutes"], err = json.Marshal(a.IdleTimeoutMinutes)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'idle_timeout_minutes': %w", err)
+		}
+	}
+
+	if a.Image != nil {
+		object["image"], err = json.Marshal(a.Image)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'image': %w", err)
+		}
+	}
+
+	if a.MemoryLimit != nil {
+		object["memory_limit"], err = json.Marshal(a.MemoryLimit)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'memory_limit': %w", err)
+		}
+	}
+
+	if a.PodSecurityContext != nil {
+		object["pod_security_context"], err = json.Marshal(a.PodSecurityContext)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'pod_security_context': %w", err)
+		}
+	}
+
+	if a.Restricted != nil {
+		object["restricted"], err = json.Marshal(a.Restricted)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'restricted': %w", err)
+		}
+	}
+
+	if a.Storage != nil {
+		object["storage"], err = json.Marshal(a.Storage)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'storage': %w", err)
+		}
+	}
+
+	if a.StorageMode != nil {
+		object["storage_mode"], err = json.Marshal(a.StorageMode)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'storage_mode': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for PolicyLifecycleData. Returns the specified
+// element and whether it was found
+func (a PolicyLifecycleData) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for PolicyLifecycleData
+func (a *PolicyLifecycleData) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for PolicyLifecycleData to handle AdditionalProperties
+func (a *PolicyLifecycleData) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["reset"]; found {
+		err = json.Unmarshal(raw, &a.Reset)
+		if err != nil {
+			return fmt.Errorf("error reading 'reset': %w", err)
+		}
+		delete(object, "reset")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for PolicyLifecycleData to handle AdditionalProperties
+func (a PolicyLifecycleData) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Reset != nil {
+		object["reset"], err = json.Marshal(a.Reset)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'reset': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// AsValidationErrorLoc0 returns the union data inside the ValidationError_Loc_Item as a ValidationErrorLoc0
+func (t ValidationError_Loc_Item) AsValidationErrorLoc0() (ValidationErrorLoc0, error) {
+	var body ValidationErrorLoc0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromValidationErrorLoc0 overwrites any union data inside the ValidationError_Loc_Item as the provided ValidationErrorLoc0
+func (t *ValidationError_Loc_Item) FromValidationErrorLoc0(v ValidationErrorLoc0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeValidationErrorLoc0 performs a merge with any union data inside the ValidationError_Loc_Item, using the provided ValidationErrorLoc0
+func (t *ValidationError_Loc_Item) MergeValidationErrorLoc0(v ValidationErrorLoc0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsValidationErrorLoc1 returns the union data inside the ValidationError_Loc_Item as a ValidationErrorLoc1
+func (t ValidationError_Loc_Item) AsValidationErrorLoc1() (ValidationErrorLoc1, error) {
+	var body ValidationErrorLoc1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromValidationErrorLoc1 overwrites any union data inside the ValidationError_Loc_Item as the provided ValidationErrorLoc1
+func (t *ValidationError_Loc_Item) FromValidationErrorLoc1(v ValidationErrorLoc1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeValidationErrorLoc1 performs a merge with any union data inside the ValidationError_Loc_Item, using the provided ValidationErrorLoc1
+func (t *ValidationError_Loc_Item) MergeValidationErrorLoc1(v ValidationErrorLoc1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ValidationError_Loc_Item) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ValidationError_Loc_Item) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsHealthOpenTerminal returns the union data inside the GetHealth200JSONResponseBody as a HealthOpenTerminal
+func (t GetHealth200JSONResponseBody) AsHealthOpenTerminal() (HealthOpenTerminal, error) {
+	var body HealthOpenTerminal
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromHealthOpenTerminal overwrites any union data inside the GetHealth200JSONResponseBody as the provided HealthOpenTerminal
+func (t *GetHealth200JSONResponseBody) FromHealthOpenTerminal(v HealthOpenTerminal) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeHealthOpenTerminal performs a merge with any union data inside the GetHealth200JSONResponseBody, using the provided HealthOpenTerminal
+func (t *GetHealth200JSONResponseBody) MergeHealthOpenTerminal(v HealthOpenTerminal) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsHealthTerminals returns the union data inside the GetHealth200JSONResponseBody as a HealthTerminals
+func (t GetHealth200JSONResponseBody) AsHealthTerminals() (HealthTerminals, error) {
+	var body HealthTerminals
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromHealthTerminals overwrites any union data inside the GetHealth200JSONResponseBody as the provided HealthTerminals
+func (t *GetHealth200JSONResponseBody) FromHealthTerminals(v HealthTerminals) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeHealthTerminals performs a merge with any union data inside the GetHealth200JSONResponseBody, using the provided HealthTerminals
+func (t *GetHealth200JSONResponseBody) MergeHealthTerminals(v HealthTerminals) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t GetHealth200JSONResponseBody) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *GetHealth200JSONResponseBody) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// GetServerConfigDefault Feature-Flags (Default-Policy)
+	// GetApiConfig Feature-Flags
 	// (GET /api/config)
-	GetServerConfigDefault(w http.ResponseWriter, r *http.Request, params GetServerConfigDefaultParams)
-	// TerminalWebSocketDefault Interaktives Terminal (WebSocket, Default-Policy)
+	GetApiConfig(w http.ResponseWriter, r *http.Request, params GetApiConfigParams)
+	// GetApiTerminals Eigene Terminal-Sessions auflisten
+	// (GET /api/terminals)
+	GetApiTerminals(w http.ResponseWriter, r *http.Request, params GetApiTerminalsParams)
+	// PostApiTerminals Terminal-Session anlegen
+	// (POST /api/terminals)
+	PostApiTerminals(w http.ResponseWriter, r *http.Request, params PostApiTerminalsParams)
+	// DeleteApiTerminalsSessionId Terminal-Session beenden
+	// (DELETE /api/terminals/{session_id})
+	DeleteApiTerminalsSessionId(w http.ResponseWriter, r *http.Request, sessionId string, params DeleteApiTerminalsSessionIdParams)
+	// GetApiTerminalsSessionId Terminal-Session lesen bzw. per WebSocket verbinden
 	// (GET /api/terminals/{session_id})
-	TerminalWebSocketDefault(w http.ResponseWriter, r *http.Request, sessionId SessionId, params TerminalWebSocketDefaultParams)
-	// ListPolicies Policies auflisten
+	GetApiTerminalsSessionId(w http.ResponseWriter, r *http.Request, sessionId string, params GetApiTerminalsSessionIdParams)
+	// GetApiV1Policies Policies auflisten
 	// (GET /api/v1/policies)
-	ListPolicies(w http.ResponseWriter, r *http.Request)
-	// DeletePolicy Policy löschen
+	GetApiV1Policies(w http.ResponseWriter, r *http.Request)
+	// PostApiV1Policies Policy anlegen
+	// (POST /api/v1/policies)
+	PostApiV1Policies(w http.ResponseWriter, r *http.Request)
+	// DeleteApiV1PoliciesPolicyId Policy löschen
 	// (DELETE /api/v1/policies/{policy_id})
-	DeletePolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId)
-	// GetPolicy Policy lesen
+	DeleteApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Request, policyId string)
+	// GetApiV1PoliciesPolicyId Policy lesen
 	// (GET /api/v1/policies/{policy_id})
-	GetPolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId)
-	// UpsertPolicy Policy anlegen oder ersetzen
+	GetApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Request, policyId string)
+	// PutApiV1PoliciesPolicyId Policy anlegen oder ersetzen
 	// (PUT /api/v1/policies/{policy_id})
-	UpsertPolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId)
-	// GetLifecycle Lifecycle-Einstellungen lesen
+	PutApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Request, policyId string)
+	// GetApiV1PoliciesPolicyIdLifecycle Lifecycle einer Policy lesen
 	// (GET /api/v1/policies/{policy_id}/lifecycle)
-	GetLifecycle(w http.ResponseWriter, r *http.Request, policyId PolicyId)
-	// PutLifecycle Lifecycle-Einstellungen setzen
+	GetApiV1PoliciesPolicyIdLifecycle(w http.ResponseWriter, r *http.Request, policyId string)
+	// PutApiV1PoliciesPolicyIdLifecycle Lifecycle einer Policy setzen
 	// (PUT /api/v1/policies/{policy_id}/lifecycle)
-	PutLifecycle(w http.ResponseWriter, r *http.Request, policyId PolicyId)
-	// ListWorkspaces Laufende Workspaces
+	PutApiV1PoliciesPolicyIdLifecycle(w http.ResponseWriter, r *http.Request, policyId string)
+	// GetApiV1Status Status der Control-Plane
+	// (GET /api/v1/status)
+	GetApiV1Status(w http.ResponseWriter, r *http.Request)
+	// GetApiV1Terminals Laufende Instanzen auflisten
 	// (GET /api/v1/terminals)
-	ListWorkspaces(w http.ResponseWriter, r *http.Request, params ListWorkspacesParams)
-	// RefreshWorkspaces Workspaces neu starten
+	GetApiV1Terminals(w http.ResponseWriter, r *http.Request)
+	// PostApiV1TerminalsRefresh Instanzen neu provisionieren
 	// (POST /api/v1/terminals/refresh)
-	RefreshWorkspaces(w http.ResponseWriter, r *http.Request)
+	PostApiV1TerminalsRefresh(w http.ResponseWriter, r *http.Request)
+	// PostApiV1TerminalsStop Eine Instanz stoppen
+	// (POST /api/v1/terminals/stop)
+	PostApiV1TerminalsStop(w http.ResponseWriter, r *http.Request)
 	// GetHealth Liveness
 	// (GET /health)
 	GetHealth(w http.ResponseWriter, r *http.Request)
-	// GetMetrics Prometheus-Metriken
-	// (GET /metrics)
-	GetMetrics(w http.ResponseWriter, r *http.Request)
-	// GetToolSpecDefault Tool-Spec der Default-Policy
+	// GetInfo Get environment info
+	// (GET /info)
+	GetInfo(w http.ResponseWriter, r *http.Request)
+	// GetOpenapiJson OpenAPI-Spec (Tool-Discovery)
 	// (GET /openapi.json)
-	GetToolSpecDefault(w http.ResponseWriter, r *http.Request)
-	// GetServerConfigForPolicy Feature-Flags einer Policy
-	// (GET /p/{policy_id}/api/config)
-	GetServerConfigForPolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId, params GetServerConfigForPolicyParams)
-	// TerminalWebSocketForPolicy Interaktives Terminal (WebSocket, benannte Policy)
+	GetOpenapiJson(w http.ResponseWriter, r *http.Request)
+	// GetPPolicyIdApiTerminalsSessionId Interaktives Terminal (WebSocket, benannte Policy)
 	// (GET /p/{policy_id}/api/terminals/{session_id})
-	TerminalWebSocketForPolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId, sessionId SessionId, params TerminalWebSocketForPolicyParams)
-	// GetToolSpecForPolicy Tool-Spec einer Policy
+	GetPPolicyIdApiTerminalsSessionId(w http.ResponseWriter, r *http.Request, policyId string, sessionId string, params GetPPolicyIdApiTerminalsSessionIdParams)
+	// GetPPolicyIdOpenapiJson OpenAPI-Spec einer Policy
 	// (GET /p/{policy_id}/openapi.json)
-	GetToolSpecForPolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId)
-	// GetSystemPromptForPolicy System-Prompt einer Policy
-	// (GET /p/{policy_id}/system)
-	GetSystemPromptForPolicy(w http.ResponseWriter, r *http.Request, policyId PolicyId, params GetSystemPromptForPolicyParams)
-	// DeletePPolicyIdProxyPath Durchreichen an den Pod
-	// (DELETE /p/{policy_id}/{proxy_path})
-	DeletePPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params DeletePPolicyIdProxyPathParams)
-	// GetPPolicyIdProxyPath Durchreichen an den Pod
-	// (GET /p/{policy_id}/{proxy_path})
-	GetPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params GetPPolicyIdProxyPathParams)
-	// HeadPPolicyIdProxyPath Durchreichen an den Pod
-	// (HEAD /p/{policy_id}/{proxy_path})
-	HeadPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params HeadPPolicyIdProxyPathParams)
-	// OptionsPPolicyIdProxyPath Durchreichen an den Pod
-	// (OPTIONS /p/{policy_id}/{proxy_path})
-	OptionsPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params OptionsPPolicyIdProxyPathParams)
-	// PatchPPolicyIdProxyPath Durchreichen an den Pod
-	// (PATCH /p/{policy_id}/{proxy_path})
-	PatchPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params PatchPPolicyIdProxyPathParams)
-	// PostPPolicyIdProxyPath Durchreichen an den Pod
-	// (POST /p/{policy_id}/{proxy_path})
-	PostPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params PostPPolicyIdProxyPathParams)
-	// PutPPolicyIdProxyPath Durchreichen an den Pod
-	// (PUT /p/{policy_id}/{proxy_path})
-	PutPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request, policyId PolicyId, proxyPath string, params PutPPolicyIdProxyPathParams)
-	// GetReady Readiness
-	// (GET /ready)
-	GetReady(w http.ResponseWriter, r *http.Request)
+	GetPPolicyIdOpenapiJson(w http.ResponseWriter, r *http.Request, policyId string)
+	// DeletePPolicyIdPath DELETE an die Instanz durchreichen
+	// (DELETE /p/{policy_id}/{path})
+	DeletePPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params DeletePPolicyIdPathParams)
+	// GetPPolicyIdPath GET an die Instanz durchreichen
+	// (GET /p/{policy_id}/{path})
+	GetPPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params GetPPolicyIdPathParams)
+	// HeadPPolicyIdPath HEAD an die Instanz durchreichen
+	// (HEAD /p/{policy_id}/{path})
+	HeadPPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params HeadPPolicyIdPathParams)
+	// OptionsPPolicyIdPath OPTIONS an die Instanz durchreichen
+	// (OPTIONS /p/{policy_id}/{path})
+	OptionsPPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params OptionsPPolicyIdPathParams)
+	// PatchPPolicyIdPath PATCH an die Instanz durchreichen
+	// (PATCH /p/{policy_id}/{path})
+	PatchPPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params PatchPPolicyIdPathParams)
+	// PostPPolicyIdPath POST an die Instanz durchreichen
+	// (POST /p/{policy_id}/{path})
+	PostPPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params PostPPolicyIdPathParams)
+	// PutPPolicyIdPath PUT an die Instanz durchreichen
+	// (PUT /p/{policy_id}/{path})
+	PutPPolicyIdPath(w http.ResponseWriter, r *http.Request, policyId string, path string, params PutPPolicyIdPathParams)
+	// GetSystem System-Prompt
+	// (GET /system)
+	GetSystem(w http.ResponseWriter, r *http.Request, params GetSystemParams)
+	// DeletePath DELETE an die Instanz durchreichen
+	// (DELETE /{path})
+	DeletePath(w http.ResponseWriter, r *http.Request, path string, params DeletePathParams)
+	// GetPath GET an die Instanz durchreichen
+	// (GET /{path})
+	GetPath(w http.ResponseWriter, r *http.Request, path string, params GetPathParams)
+	// HeadPath HEAD an die Instanz durchreichen
+	// (HEAD /{path})
+	HeadPath(w http.ResponseWriter, r *http.Request, path string, params HeadPathParams)
+	// OptionsPath OPTIONS an die Instanz durchreichen
+	// (OPTIONS /{path})
+	OptionsPath(w http.ResponseWriter, r *http.Request, path string, params OptionsPathParams)
+	// PatchPath PATCH an die Instanz durchreichen
+	// (PATCH /{path})
+	PatchPath(w http.ResponseWriter, r *http.Request, path string, params PatchPathParams)
+	// PostPath POST an die Instanz durchreichen
+	// (POST /{path})
+	PostPath(w http.ResponseWriter, r *http.Request, path string, params PostPathParams)
+	// PutPath PUT an die Instanz durchreichen
+	// (PUT /{path})
+	PutPath(w http.ResponseWriter, r *http.Request, path string, params PutPathParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -564,20 +2143,20 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// GetServerConfigDefault operation middleware
-func (siw *ServerInterfaceWrapper) GetServerConfigDefault(w http.ResponseWriter, r *http.Request) {
+// GetApiConfig operation middleware
+func (siw *ServerInterfaceWrapper) GetApiConfig(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetServerConfigDefaultParams
+	var params GetApiConfigParams
 
 	headers := r.Header
 
 	// ------------- Optional header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserIdOptional
+		var XUserId XUserId
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -594,8 +2173,27 @@ func (siw *ServerInterfaceWrapper) GetServerConfigDefault(w http.ResponseWriter,
 
 	}
 
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetServerConfigDefault(w, r, params)
+		siw.Handler.GetApiConfig(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -605,14 +2203,134 @@ func (siw *ServerInterfaceWrapper) GetServerConfigDefault(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
-// TerminalWebSocketDefault operation middleware
-func (siw *ServerInterfaceWrapper) TerminalWebSocketDefault(w http.ResponseWriter, r *http.Request) {
+// GetApiTerminals operation middleware
+func (siw *ServerInterfaceWrapper) GetApiTerminals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetApiTerminalsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = &XUserId
+
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetApiTerminals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostApiTerminals operation middleware
+func (siw *ServerInterfaceWrapper) PostApiTerminals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostApiTerminalsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = &XUserId
+
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiTerminals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteApiTerminalsSessionId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteApiTerminalsSessionId(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "session_id" -------------
-	var sessionId SessionId
+	var sessionId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "session_id", mux.Vars(r)["session_id"], &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -621,11 +2339,80 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketDefault(w http.ResponseWrite
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params TerminalWebSocketDefaultParams
+	var params DeleteApiTerminalsSessionIdParams
 
-	// ------------- Required query parameter "user_id" -------------
+	headers := r.Header
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "user_id", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	// ------------- Optional header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = &XUserId
+
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteApiTerminalsSessionId(w, r, sessionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetApiTerminalsSessionId operation middleware
+func (siw *ServerInterfaceWrapper) GetApiTerminalsSessionId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", mux.Vars(r)["session_id"], &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetApiTerminalsSessionIdParams
+
+	// ------------- Optional query parameter "user_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "user_id", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
@@ -636,9 +2423,22 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketDefault(w http.ResponseWrite
 		return
 	}
 
+	// ------------- Optional query parameter "context_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "context_id", r.URL.Query(), &params.ContextId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "context_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "context_id", Err: err})
+		}
+		return
+	}
+
 	headers := r.Header
 
-	// ------------- Required header parameter "X-User-Id" -------------
+	// ------------- Optional header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
 		var XUserId XUserId
 		n := len(valueList)
@@ -647,18 +2447,14 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketDefault(w http.ResponseWrite
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
 		if err != nil {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
 			return
 		}
 
-		params.XUserId = XUserId
+		params.XUserId = &XUserId
 
-	} else {
-		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
-		return
 	}
 
 	// ------------- Optional header parameter "X-Session-Id" -------------
@@ -699,31 +2495,8 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketDefault(w http.ResponseWrite
 
 	}
 
-	// ------------- Required header parameter "Upgrade" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Upgrade")]; found {
-		var Upgrade string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Upgrade", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "Upgrade", valueList[0], &Upgrade, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Upgrade", Err: err})
-			return
-		}
-
-		params.Upgrade = Upgrade
-
-	} else {
-		err = fmt.Errorf("Header parameter Upgrade is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Upgrade", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.TerminalWebSocketDefault(w, r, sessionId, params)
+		siw.Handler.GetApiTerminalsSessionId(w, r, sessionId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -733,11 +2506,11 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketDefault(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
-// ListPolicies operation middleware
-func (siw *ServerInterfaceWrapper) ListPolicies(w http.ResponseWriter, r *http.Request) {
+// GetApiV1Policies operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1Policies(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListPolicies(w, r)
+		siw.Handler.GetApiV1Policies(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -747,14 +2520,28 @@ func (siw *ServerInterfaceWrapper) ListPolicies(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// DeletePolicy operation middleware
-func (siw *ServerInterfaceWrapper) DeletePolicy(w http.ResponseWriter, r *http.Request) {
+// PostApiV1Policies operation middleware
+func (siw *ServerInterfaceWrapper) PostApiV1Policies(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiV1Policies(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteApiV1PoliciesPolicyId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -763,7 +2550,7 @@ func (siw *ServerInterfaceWrapper) DeletePolicy(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeletePolicy(w, r, policyId)
+		siw.Handler.DeleteApiV1PoliciesPolicyId(w, r, policyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -773,14 +2560,14 @@ func (siw *ServerInterfaceWrapper) DeletePolicy(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// GetPolicy operation middleware
-func (siw *ServerInterfaceWrapper) GetPolicy(w http.ResponseWriter, r *http.Request) {
+// GetApiV1PoliciesPolicyId operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -789,7 +2576,7 @@ func (siw *ServerInterfaceWrapper) GetPolicy(w http.ResponseWriter, r *http.Requ
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetPolicy(w, r, policyId)
+		siw.Handler.GetApiV1PoliciesPolicyId(w, r, policyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -799,14 +2586,14 @@ func (siw *ServerInterfaceWrapper) GetPolicy(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// UpsertPolicy operation middleware
-func (siw *ServerInterfaceWrapper) UpsertPolicy(w http.ResponseWriter, r *http.Request) {
+// PutApiV1PoliciesPolicyId operation middleware
+func (siw *ServerInterfaceWrapper) PutApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -815,7 +2602,7 @@ func (siw *ServerInterfaceWrapper) UpsertPolicy(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpsertPolicy(w, r, policyId)
+		siw.Handler.PutApiV1PoliciesPolicyId(w, r, policyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -825,14 +2612,14 @@ func (siw *ServerInterfaceWrapper) UpsertPolicy(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// GetLifecycle operation middleware
-func (siw *ServerInterfaceWrapper) GetLifecycle(w http.ResponseWriter, r *http.Request) {
+// GetApiV1PoliciesPolicyIdLifecycle operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1PoliciesPolicyIdLifecycle(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -841,7 +2628,7 @@ func (siw *ServerInterfaceWrapper) GetLifecycle(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetLifecycle(w, r, policyId)
+		siw.Handler.GetApiV1PoliciesPolicyIdLifecycle(w, r, policyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -851,14 +2638,14 @@ func (siw *ServerInterfaceWrapper) GetLifecycle(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// PutLifecycle operation middleware
-func (siw *ServerInterfaceWrapper) PutLifecycle(w http.ResponseWriter, r *http.Request) {
+// PutApiV1PoliciesPolicyIdLifecycle operation middleware
+func (siw *ServerInterfaceWrapper) PutApiV1PoliciesPolicyIdLifecycle(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -867,7 +2654,7 @@ func (siw *ServerInterfaceWrapper) PutLifecycle(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PutLifecycle(w, r, policyId)
+		siw.Handler.PutApiV1PoliciesPolicyIdLifecycle(w, r, policyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -877,43 +2664,11 @@ func (siw *ServerInterfaceWrapper) PutLifecycle(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// ListWorkspaces operation middleware
-func (siw *ServerInterfaceWrapper) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ListWorkspacesParams
-
-	// ------------- Optional query parameter "policy_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "policy_id", r.URL.Query(), &params.PolicyId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "policy_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		}
-		return
-	}
-
-	// ------------- Optional query parameter "user_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "user_id", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "user_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
-		}
-		return
-	}
+// GetApiV1Status operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1Status(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListWorkspaces(w, r, params)
+		siw.Handler.GetApiV1Status(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -923,11 +2678,39 @@ func (siw *ServerInterfaceWrapper) ListWorkspaces(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
-// RefreshWorkspaces operation middleware
-func (siw *ServerInterfaceWrapper) RefreshWorkspaces(w http.ResponseWriter, r *http.Request) {
+// GetApiV1Terminals operation middleware
+func (siw *ServerInterfaceWrapper) GetApiV1Terminals(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RefreshWorkspaces(w, r)
+		siw.Handler.GetApiV1Terminals(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostApiV1TerminalsRefresh operation middleware
+func (siw *ServerInterfaceWrapper) PostApiV1TerminalsRefresh(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiV1TerminalsRefresh(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostApiV1TerminalsStop operation middleware
+func (siw *ServerInterfaceWrapper) PostApiV1TerminalsStop(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiV1TerminalsStop(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -951,11 +2734,11 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// GetMetrics operation middleware
-func (siw *ServerInterfaceWrapper) GetMetrics(w http.ResponseWriter, r *http.Request) {
+// GetInfo operation middleware
+func (siw *ServerInterfaceWrapper) GetInfo(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetMetrics(w, r)
+		siw.Handler.GetInfo(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -965,11 +2748,11 @@ func (siw *ServerInterfaceWrapper) GetMetrics(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// GetToolSpecDefault operation middleware
-func (siw *ServerInterfaceWrapper) GetToolSpecDefault(w http.ResponseWriter, r *http.Request) {
+// GetOpenapiJson operation middleware
+func (siw *ServerInterfaceWrapper) GetOpenapiJson(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetToolSpecDefault(w, r)
+		siw.Handler.GetOpenapiJson(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -979,64 +2762,14 @@ func (siw *ServerInterfaceWrapper) GetToolSpecDefault(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
-// GetServerConfigForPolicy operation middleware
-func (siw *ServerInterfaceWrapper) GetServerConfigForPolicy(w http.ResponseWriter, r *http.Request) {
+// GetPPolicyIdApiTerminalsSessionId operation middleware
+func (siw *ServerInterfaceWrapper) GetPPolicyIdApiTerminalsSessionId(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetServerConfigForPolicyParams
-
-	headers := r.Header
-
-	// ------------- Optional header parameter "X-User-Id" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserIdOptional
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
-			return
-		}
-
-		params.XUserId = &XUserId
-
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetServerConfigForPolicy(w, r, policyId, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// TerminalWebSocketForPolicy operation middleware
-func (siw *ServerInterfaceWrapper) TerminalWebSocketForPolicy(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -1045,7 +2778,7 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketForPolicy(w http.ResponseWri
 	}
 
 	// ------------- Path parameter "session_id" -------------
-	var sessionId SessionId
+	var sessionId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "session_id", mux.Vars(r)["session_id"], &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -1054,11 +2787,11 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketForPolicy(w http.ResponseWri
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params TerminalWebSocketForPolicyParams
+	var params GetPPolicyIdApiTerminalsSessionIdParams
 
-	// ------------- Required query parameter "user_id" -------------
+	// ------------- Optional query parameter "user_id" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "user_id", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "user_id", r.URL.Query(), &params.UserId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
@@ -1069,11 +2802,128 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketForPolicy(w http.ResponseWri
 		return
 	}
 
+	// ------------- Optional query parameter "context_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "context_id", r.URL.Query(), &params.ContextId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "context_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "context_id", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPPolicyIdApiTerminalsSessionId(w, r, policyId, sessionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPPolicyIdOpenapiJson operation middleware
+func (siw *ServerInterfaceWrapper) GetPPolicyIdOpenapiJson(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPPolicyIdOpenapiJson(w, r, policyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) DeletePPolicyIdPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeletePPolicyIdPathParams
+
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1132,31 +2982,8 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketForPolicy(w http.ResponseWri
 
 	}
 
-	// ------------- Required header parameter "Upgrade" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Upgrade")]; found {
-		var Upgrade string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Upgrade", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "Upgrade", valueList[0], &Upgrade, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Upgrade", Err: err})
-			return
-		}
-
-		params.Upgrade = Upgrade
-
-	} else {
-		err = fmt.Errorf("Header parameter Upgrade is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Upgrade", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.TerminalWebSocketForPolicy(w, r, policyId, sessionId, params)
+		siw.Handler.DeletePPolicyIdPath(w, r, policyId, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1166,14 +2993,14 @@ func (siw *ServerInterfaceWrapper) TerminalWebSocketForPolicy(w http.ResponseWri
 	handler.ServeHTTP(w, r)
 }
 
-// GetToolSpecForPolicy operation middleware
-func (siw *ServerInterfaceWrapper) GetToolSpecForPolicy(w http.ResponseWriter, r *http.Request) {
+// GetPPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) GetPPolicyIdPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	var policyId string
 
 	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
@@ -1181,40 +3008,611 @@ func (siw *ServerInterfaceWrapper) GetToolSpecForPolicy(w http.ResponseWriter, r
 		return
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetToolSpecForPolicy(w, r, policyId)
-	}))
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetSystemPromptForPolicy operation middleware
-func (siw *ServerInterfaceWrapper) GetSystemPromptForPolicy(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetSystemPromptForPolicyParams
+	var params GetPPolicyIdPathParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserIdRequired
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = XUserId
+
+	} else {
+		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPPolicyIdPath(w, r, policyId, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// HeadPPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) HeadPPolicyIdPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params HeadPPolicyIdPathParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserIdRequired
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = XUserId
+
+	} else {
+		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HeadPPolicyIdPath(w, r, policyId, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OptionsPPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) OptionsPPolicyIdPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OptionsPPolicyIdPathParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserIdRequired
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = XUserId
+
+	} else {
+		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OptionsPPolicyIdPath(w, r, policyId, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchPPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) PatchPPolicyIdPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PatchPPolicyIdPathParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserIdRequired
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = XUserId
+
+	} else {
+		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchPPolicyIdPath(w, r, policyId, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostPPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) PostPPolicyIdPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostPPolicyIdPathParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserIdRequired
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = XUserId
+
+	} else {
+		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostPPolicyIdPath(w, r, policyId, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutPPolicyIdPath operation middleware
+func (siw *ServerInterfaceWrapper) PutPPolicyIdPath(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policy_id" -------------
+	var policyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "path" -------------
+	var path string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutPPolicyIdPathParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-User-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
+		var XUserId XUserIdRequired
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Id", valueList[0], &XUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			return
+		}
+
+		params.XUserId = XUserId
+
+	} else {
+		err = fmt.Errorf("Header parameter X-User-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
+	// ------------- Optional header parameter "X-Terminal-Context-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Terminal-Context-Id")]; found {
+		var XTerminalContextId XTerminalContextId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Terminal-Context-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Terminal-Context-Id", valueList[0], &XTerminalContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Terminal-Context-Id", Err: err})
+			return
+		}
+
+		params.XTerminalContextId = &XTerminalContextId
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutPPolicyIdPath(w, r, policyId, path, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSystem operation middleware
+func (siw *ServerInterfaceWrapper) GetSystem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSystemParams
 
 	headers := r.Header
 
 	// ------------- Optional header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserIdOptional
+		var XUserId XUserId
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1231,8 +3629,27 @@ func (siw *ServerInterfaceWrapper) GetSystemPromptForPolicy(w http.ResponseWrite
 
 	}
 
+	// ------------- Optional header parameter "X-Session-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Session-Id")]; found {
+		var XSessionId XSessionId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Session-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Session-Id", valueList[0], &XSessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Session-Id", Err: err})
+			return
+		}
+
+		params.XSessionId = &XSessionId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetSystemPromptForPolicy(w, r, policyId, params)
+		siw.Handler.GetSystem(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1242,38 +3659,29 @@ func (siw *ServerInterfaceWrapper) GetSystemPromptForPolicy(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
-// DeletePPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) DeletePPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// DeletePath operation middleware
+func (siw *ServerInterfaceWrapper) DeletePath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params DeletePPolicyIdProxyPathParams
+	var params DeletePathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1333,7 +3741,7 @@ func (siw *ServerInterfaceWrapper) DeletePPolicyIdProxyPath(w http.ResponseWrite
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeletePPolicyIdProxyPath(w, r, policyId, proxyPath, params)
+		siw.Handler.DeletePath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1343,38 +3751,29 @@ func (siw *ServerInterfaceWrapper) DeletePPolicyIdProxyPath(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
-// GetPPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) GetPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// GetPath operation middleware
+func (siw *ServerInterfaceWrapper) GetPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetPPolicyIdProxyPathParams
+	var params GetPathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1434,7 +3833,7 @@ func (siw *ServerInterfaceWrapper) GetPPolicyIdProxyPath(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetPPolicyIdProxyPath(w, r, policyId, proxyPath, params)
+		siw.Handler.GetPath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1444,38 +3843,29 @@ func (siw *ServerInterfaceWrapper) GetPPolicyIdProxyPath(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
-// HeadPPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) HeadPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// HeadPath operation middleware
+func (siw *ServerInterfaceWrapper) HeadPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params HeadPPolicyIdProxyPathParams
+	var params HeadPathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1535,7 +3925,7 @@ func (siw *ServerInterfaceWrapper) HeadPPolicyIdProxyPath(w http.ResponseWriter,
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.HeadPPolicyIdProxyPath(w, r, policyId, proxyPath, params)
+		siw.Handler.HeadPath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1545,38 +3935,29 @@ func (siw *ServerInterfaceWrapper) HeadPPolicyIdProxyPath(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
-// OptionsPPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) OptionsPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// OptionsPath operation middleware
+func (siw *ServerInterfaceWrapper) OptionsPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params OptionsPPolicyIdProxyPathParams
+	var params OptionsPathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1636,7 +4017,7 @@ func (siw *ServerInterfaceWrapper) OptionsPPolicyIdProxyPath(w http.ResponseWrit
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.OptionsPPolicyIdProxyPath(w, r, policyId, proxyPath, params)
+		siw.Handler.OptionsPath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1646,38 +4027,29 @@ func (siw *ServerInterfaceWrapper) OptionsPPolicyIdProxyPath(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
-// PatchPPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) PatchPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// PatchPath operation middleware
+func (siw *ServerInterfaceWrapper) PatchPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params PatchPPolicyIdProxyPathParams
+	var params PatchPathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1737,7 +4109,7 @@ func (siw *ServerInterfaceWrapper) PatchPPolicyIdProxyPath(w http.ResponseWriter
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PatchPPolicyIdProxyPath(w, r, policyId, proxyPath, params)
+		siw.Handler.PatchPath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1747,38 +4119,29 @@ func (siw *ServerInterfaceWrapper) PatchPPolicyIdProxyPath(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
-// PostPPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) PostPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// PostPath operation middleware
+func (siw *ServerInterfaceWrapper) PostPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params PostPPolicyIdProxyPathParams
+	var params PostPathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1838,7 +4201,7 @@ func (siw *ServerInterfaceWrapper) PostPPolicyIdProxyPath(w http.ResponseWriter,
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostPPolicyIdProxyPath(w, r, policyId, proxyPath, params)
+		siw.Handler.PostPath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1848,38 +4211,29 @@ func (siw *ServerInterfaceWrapper) PostPPolicyIdProxyPath(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
-// PutPPolicyIdProxyPath operation middleware
-func (siw *ServerInterfaceWrapper) PutPPolicyIdProxyPath(w http.ResponseWriter, r *http.Request) {
+// PutPath operation middleware
+func (siw *ServerInterfaceWrapper) PutPath(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "policy_id" -------------
-	var policyId PolicyId
+	// ------------- Path parameter "path" -------------
+	var path string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "policy_id", mux.Vars(r)["policy_id"], &policyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "path", mux.Vars(r)["path"], &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policy_id", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "proxy_path" -------------
-	var proxyPath string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "proxy_path", mux.Vars(r)["proxy_path"], &proxyPath, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proxy_path", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params PutPPolicyIdProxyPathParams
+	var params PutPathParams
 
 	headers := r.Header
 
 	// ------------- Required header parameter "X-User-Id" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+		var XUserId XUserIdRequired
 		n := len(valueList)
 		if n != 1 {
 			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
@@ -1939,21 +4293,7 @@ func (siw *ServerInterfaceWrapper) PutPPolicyIdProxyPath(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PutPPolicyIdProxyPath(w, r, policyId, proxyPath, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetReady operation middleware
-func (siw *ServerInterfaceWrapper) GetReady(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetReady(w, r)
+		siw.Handler.PutPath(w, r, path, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2076,55 +4416,77 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	r.HandleFunc(options.BaseURL+"/api/config", wrapper.GetApiConfig).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/terminals", wrapper.GetApiTerminals).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/terminals", wrapper.PostApiTerminals).Methods(http.MethodPost)
+
+	r.HandleFunc(options.BaseURL+"/api/terminals/{session_id}", wrapper.DeleteApiTerminalsSessionId).Methods(http.MethodDelete)
+
+	r.HandleFunc(options.BaseURL+"/api/terminals/{session_id}", wrapper.GetApiTerminalsSessionId).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies", wrapper.GetApiV1Policies).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies", wrapper.PostApiV1Policies).Methods(http.MethodPost)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}", wrapper.DeleteApiV1PoliciesPolicyId).Methods(http.MethodDelete)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}", wrapper.GetApiV1PoliciesPolicyId).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}", wrapper.PutApiV1PoliciesPolicyId).Methods(http.MethodPut)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}/lifecycle", wrapper.GetApiV1PoliciesPolicyIdLifecycle).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}/lifecycle", wrapper.PutApiV1PoliciesPolicyIdLifecycle).Methods(http.MethodPut)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/status", wrapper.GetApiV1Status).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/terminals", wrapper.GetApiV1Terminals).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/terminals/refresh", wrapper.PostApiV1TerminalsRefresh).Methods(http.MethodPost)
+
+	r.HandleFunc(options.BaseURL+"/api/v1/terminals/stop", wrapper.PostApiV1TerminalsStop).Methods(http.MethodPost)
+
 	r.HandleFunc(options.BaseURL+"/health", wrapper.GetHealth).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/ready", wrapper.GetReady).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/info", wrapper.GetInfo).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/metrics", wrapper.GetMetrics).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/openapi.json", wrapper.GetOpenapiJson).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/openapi.json", wrapper.GetToolSpecDefault).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/api/terminals/{session_id}", wrapper.GetPPolicyIdApiTerminalsSessionId).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/openapi.json", wrapper.GetToolSpecForPolicy).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/openapi.json", wrapper.GetPPolicyIdOpenapiJson).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/api/config", wrapper.GetServerConfigDefault).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.DeletePPolicyIdPath).Methods(http.MethodDelete)
 
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/api/config", wrapper.GetServerConfigForPolicy).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.GetPPolicyIdPath).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/system", wrapper.GetSystemPromptForPolicy).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.HeadPPolicyIdPath).Methods(http.MethodHead)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/policies", wrapper.ListPolicies).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.OptionsPPolicyIdPath).Methods(http.MethodOptions)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}", wrapper.DeletePolicy).Methods(http.MethodDelete)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.PatchPPolicyIdPath).Methods(http.MethodPatch)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}", wrapper.GetPolicy).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.PostPPolicyIdPath).Methods(http.MethodPost)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}", wrapper.UpsertPolicy).Methods(http.MethodPut)
+	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{path}", wrapper.PutPPolicyIdPath).Methods(http.MethodPut)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}/lifecycle", wrapper.GetLifecycle).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/system", wrapper.GetSystem).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/policies/{policy_id}/lifecycle", wrapper.PutLifecycle).Methods(http.MethodPut)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.DeletePath).Methods(http.MethodDelete)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/terminals", wrapper.ListWorkspaces).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.GetPath).Methods(http.MethodGet)
 
-	r.HandleFunc(options.BaseURL+"/api/v1/terminals/refresh", wrapper.RefreshWorkspaces).Methods(http.MethodPost)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.HeadPath).Methods(http.MethodHead)
 
-	r.HandleFunc(options.BaseURL+"/api/terminals/{session_id}", wrapper.TerminalWebSocketDefault).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.OptionsPath).Methods(http.MethodOptions)
 
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/api/terminals/{session_id}", wrapper.TerminalWebSocketForPolicy).Methods(http.MethodGet)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.PatchPath).Methods(http.MethodPatch)
 
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.DeletePPolicyIdProxyPath).Methods(http.MethodDelete)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.PostPath).Methods(http.MethodPost)
 
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.GetPPolicyIdProxyPath).Methods(http.MethodGet)
-
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.HeadPPolicyIdProxyPath).Methods(http.MethodHead)
-
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.OptionsPPolicyIdProxyPath).Methods(http.MethodOptions)
-
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.PatchPPolicyIdProxyPath).Methods(http.MethodPatch)
-
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.PostPPolicyIdProxyPath).Methods(http.MethodPost)
-
-	r.HandleFunc(options.BaseURL+"/p/{policy_id}/{proxy_path}", wrapper.PutPPolicyIdProxyPath).Methods(http.MethodPut)
+	r.HandleFunc(options.BaseURL+"/{path}", wrapper.PutPath).Methods(http.MethodPut)
 
 	return r
 }
@@ -2134,131 +4496,268 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"7H3dcttIluarZKDnguKCEGW7Kma5UdEhS7LLbdnWWJJd06ZXSAKHZDaBBCozod9VRF3tA+z1xM6NYx6h",
-	"r+pOb1JPMnFOJv5IUJJdLldHl+9kEMg8mXn+z3fSV16UpXkmQRrtja68nCueggFF/zrIEhFdPIvx7xh0",
-	"pERuRCa9kfeSp8BiUMy+4rPj1/uDRRYLUCZgeyrhxcQA+yuIaA6SvdsTM5DvRyz83+/44HI4+J/ve+6P",
-	"wfurof9oeF0+3/jzv4Sst/vycJDwCSQDw4tZIqI5m978jNPFA5xbbgSe7wkkJedm7vme5Cngv4ieExF7",
-	"vqfgx0IoiL2RUQX4no7mkHK7TGNA4df3ocfzPXOR4+jaKCFn3vW17x2C1iKTXZtzBCoVkicD987g2S47",
-	"zSR7lYNk5Y+sd5qpOSiWg2LhwavDI7bJc7Fp3O86ZFzOIIGZWbdWbYe/a7GrtP9wC/HvXr09frb56ug9",
-	"25lzM3i2GyzRPb35ea4Mi7m6+XkCioGQDPB4QbNtNQFh9CmoSzx5KTTLVUYjBeytUDE7A2FAzUDh76Za",
-	"2Bx4DKpe2g/13sXeHYspKdvJpIFzs3ZR79nLQrEZaDCXxmdnICUT7lTewuT4Gfvlp/9fLdONpn/56T8Y",
-	"L6b42wEoFs25wUdZDGos3UNemCzlOBf+pA3McbmgDIxYiF+MxsVw+DDCP09ETP+AkMZgYf2xe6t+UL8b",
-	"jOUTmCeGgfLZTCSGhTFMeZGYMCili5Z3WVgh2S70GZ8nPpO4z27blRXHYCzX73vFvG4Dlg+gITo9XM//",
-	"qcndGAX/o1tYfjjWoG45GDyDAZ3BAN9EgekdHz/b3QjYEYiExaDZ20wtdM4jGBxG8+TmZ60h0T47Q67i",
-	"ksUgceH3ZzA70UeLjl3JK1oAT9au6DEItit0lJ2Cuhi8hh8L0EYzkOYM8NinME9Axo4H9IU2kIb3onY9",
-	"dde4FJ1nUgOp78c8fsoNnPEL/FeE5ykN/snzPBERndnm3zSSfdUY9l8UTL2R96fN2jRs2l/15p5SmbJT",
-	"tZeNWw/nQhsByvhMaMM4agfLfo71Jlx51z7S5Tbkt6frWM5ufk6MmAHbllPFZ8B6lwF7HLCw2tSQTsNs",
-	"IG1PMjURcQzyC5DmOJ0Xmh1lC5As51obt2WXRZNCJO1lZp5khYy/xGGiEWWFnMCCS2lw9gOVnQrUyELO",
-	"jkQKWWG+DFedFSoGtykKorm5BGHEjE1AgSDSjiUvzDxT4hK+wOY8sZILVnSLBn8VZg7SiKm4FKAKpzDc",
-	"eDidHRJ1qMpyUEZYMY2yGDr0iFPqL7iO5kKCTEBPuALFdvB93wNZpN7onZcKrYWcnRQalHUFiuZ++B79",
-	"kAqdchOh9+BcJJmZkynxk+/9WGSGn8B5BBDTN3njtE+mXCSrT41jAt8rcm0U8PSkkAp4NOeTBLz3K3YA",
-	"N9JwkXSoLt+Dcm/au/C8UJcT0NFcgZjglnZZl1p/v3Pj1JNnk79BRFzyPfDEzFe3XxtuCncQElWSly3u",
-	"nMZ91DXPvphCdBEldKY8joW1FAeNSac80eB3G44nCgRo9pfDVy/9pm8ipAGVKyAFy0BbiQjGsmSUN5nS",
-	"0TzhM+spxwLYE0gsjxqQATsuxbn64Zf/+//Yo+HQ+gPtXVkA5CenWVKkcBLzC716NAdvdjSyP8jCXBpQ",
-	"tYHW7AwU2mPJoznTGTsVkKALyWcg2QySm79rpJ0N2XdMCkCzlwopUmToYbWluOIZkMVI+flJIqaAPHcy",
-	"zwrVRU8WW2dA5zcfDGgDUlsKYgEaFAYjhkko0AU0XBkwPuNFNLeeICjGF0acoulqEbTVRVAlCaUYnGiI",
-	"Mhk7usgz80ZbD4bLp/yCn4uUJ8DeIgWoytgERMq2ZQIzPKUXhdZ0YorFkLKHw+FAD5zCraMIyxOJoG88",
-	"2iBL7YN/HTZp79jN69t4dk+eQpLlsComMTd36sya9Zflhb7ukhZralanixRwA/EJN2tVo+d700yl+AaO",
-	"DwM8Cq9L7dyDdEvHLr557Xsi7lRSRR5/JqKWtofU9h17tOtW8QkqhaTdJ5WAYr8dp0IOdgVPstkyS1Fw",
-	"xAqJskSOaiJAN9XMXwt988FcYkhe6ZEeaRiWcrUQoMwGy6cJzLRhcUHh7fbBM2st/337xX7Q0mozmSn8",
-	"hmkBwVhuR3NTyNmIHeYUqyhD8SVRTPQ710SkzNLvMzSP0cI0R5WFYhqEBBeYSkdoMJa7oNgrFc1BG8VN",
-	"ppjOksQACiE7OD5iMeg5Tya17wNlCDUDDTIGA4x2YuDW3u9PQExgzhMDst/v0qVRXpwkIhVmbbTwvJiA",
-	"kmBAD/6t4NIIc+GzXatG6rWycItCBDjnaZ7g2O+8Lc/3vhkO0057ixOr2tPudjDKab5jYUUoTbMyHMwU",
-	"aL1+pLc3HzBEzcGGoPuYv2F0DKeZsu4abt9LMGeZWriT5IUOKhpCsnISLAGlhyMzCRQZ2d8834uSQhtQ",
-	"nYsGebpeTK66nJKOA2lx+XE6A3Q+9ClXAp0b6UysDTkDFr462Ht5crT3+sWzl9v7J9sHz06e7/17aM3R",
-	"aZa2OY7SJujSCJhY7b0i8SJOoLIsqZCFAb2WeSrDt2RuX9B3kmVzCcwFXCTZ9CCbTkECCsxhFi3ADN6A",
-	"mggZF3LWNNGrTPhweLd5FCmfwVqCMbPAhcTIBt8L2D44Z6ScLQbd2jO9zPazeaQCkW1mmDg4g0kh7J9l",
-	"9myUcAPadDIIOhNnla9ykoMi33k9Xz9GxpeXpunhYFoLgzNSHO3cUJk50QG7+Q931CBQrdEabz4kSBoo",
-	"9ixOYFCNac8QpJmCkvdwQVJIM3XxuRTLU7GqWp6K7v2zE3+MYmnS2q1btMnUbTzzVN38/eY/gTjj4M1O",
-	"wGw6LOaadDvtLORzSEFhbhXS3FzsCrWxvKhv1izKzX8SJfw2FXdoX9vBt5wS4JagThu/ItivgcdCOi26",
-	"ZCXmEC30R6muxsKuvEV11GUI4wK9iEdzsM+uu9yLOgAqFS59HcNM8Rhi7/1d3sstwdBrmCrQ89drecVl",
-	"y7L4Ah2OZW+ktLnBik3NZIJZ/qSDYzAN2pBU0nbk2q/RdpVKLHWkBmHYt0Omy8xq43AnWZYAl951tb0i",
-	"7iaBog7nr5TsilzKkwQ6RUCBhlvEyagCaICDNzssFcaqaJCsV6sQF9ewBEBtNCZpUF2mCdbTLEmx3YPk",
-	"JTaoj6Rcy60cYROVq3Kg7AuwPlu8LS/5PGETMMpaseZ5u4ywSNlRxrWhIsoliJkJvFUturSCeuouyg8p",
-	"SXugsjQ3q2Tn1fN7qIFGyWIqZl0LPcJlop9kg77w6Z6rD0X0SbgqEVPgplDQoVlkZmCSZYumEmlwhE0+",
-	"d/9W2tOuX1cX1rXU6mRuC5mWE2JkPx2XNrV3GVn7HlVVvp1uRb/89F/dvm8rgLxfoJhwbU54ZMSpMBcf",
-	"9WWWgzw5g4km7UKruD2jkWfxiU3ud+j1lmbpMFXL+rqZlyPh4/GFVx2esU9dFq9rrxo64XYRr3OMzTpr",
-	"47z89cYAKYeoUMJcHGLQ7fR4DpJ0vav34bMJcAXqSbnxf3l75K1x07F4Nj/BiUbMVUPDVnxZBodopf/y",
-	"lsI7BgLrqtlsZpyq080sGk9ELECBrGs1SbZAn+L7wwfffIual4Vv9x4fPzs53Nt5vXdErr7PdhIuUhaK",
-	"ONywsW6OBUKS2ysKD+w3x6/3r0mOT7c2kXi9GdKQmOuxRYDenprBRArNFoW6ZGS95QaGrgJYs2ZQf5Ji",
-	"zogIa9Q0KMwAIbURaQrSZzqT2rBHw4fNOLujRtULyZfmuQgwZR766N++ASWmF+i6S4hcpdN31m1A4fkG",
-	"W2Q40VjaUF1Dyl5kcaFZv4/mtd+31AbsUABLqYAnKVhcCggnM9Au9nd5RFtsBW1VO7ldWgC7rIM0yhI8",
-	"Jr4ZPIcLxheXkFOq1AbklOYh7UXv1CI8NyYnAW5EG8/hYq3taXKcHSsM2KHhRuAUiuHkK9FLdVyHECkw",
-	"Y1mWoHa+3z56/OqHKmLcCNhKguIUlFG8MGx5W3HAxoEPvqeioT+WyH27AvC0Y66mVU4D0yK0eQ0BqStz",
-	"lDFhvdZhbNxr91C0hZxmq5tGQiVQfacgja2K4FGBxvpWg4xFlubcCIqtqwp0OwIcyxbZC5DSMDGXjCca",
-	"ObT5NjGnziY8iRum83Rrk9SWAG2F7sH5+Vhya2YBg11OIXRCiYomeegA1XS5QqK0IlY6TXbHfUa8iuFh",
-	"D0/GrxAyLircoPVbL7cutmMML1KG0BbryYUoghTYDtDUTbLzcCynQsZgrHrhmDC28Xws6uJmXCgKN21t",
-	"YCz/9Cf2PahFIafG5v7kjE9QSAes37c83e+P2BtQNoPlk6ps7fSZ9Sl7KJhua0p+btTtH/NoATL2x5Kx",
-	"UGWFAaVrMEuQX4R+/dw6MeXTwohk9V33NMvcExxYZxgkhNtxXO7cIahTUC+ymCeBPoXEQOijPMqYvVqY",
-	"DM/nwfDBtxsusQ7nfGEwR1KkDgjidExQ7shRez86gDvDYOtR8C3rHbuy16DKZ2yUo1hjggPtghYzSjVH",
-	"cxAUbxC/LGkIn00VCHbzAYV3wlV5dl2ghzIqGcs9Ies3WO870oIHWbzhcgnILoWtlZIVMJY9xjLsVXrD",
-	"Z5Up91kn/IP9+c9sXLpeY28DwSivMF4KN/PNq+rr63BwoGAqzh0+pfqBfdf8PCyXVm3fG1JwM3ZZpEg8",
-	"wzPAfTyY8ni0Mkk7TULixl7bzNYpKLuBZhkFgsOF264oStVgNw7tBwut5WAWf5Nn8YDnYrCAixKpA8ry",
-	"Sg/VO8r2QRb7pHisRmegLqFApBbN1LDCKJ9hE80Ulkat329S3O8v09zmOuT+XN38PKV6EfuekqEzVcg4",
-	"V9klaI2iuww80zT9y9L991k2aRKHY+Km7yltIElAWQDC/7JwCNpZZ1OYrSyCs0Dsr8VMiekU6M1yzR2s",
-	"43ZZrgKTmKsbEoVNjFLrzFwIBLLcNKw35sV0imc8A8tABj0WOIeoMPBn++g7owoIsXZBb2IxdX+jZDxX",
-	"TNPMqr+WXbE0kZHMVXYuIGbfHx0d1M7RFqYFnBc0IOIfDvHRU9A8NWWhbizxl1NQusCVlSAYCYUJWGcJ",
-	"wlYBAU9CVokIaynJRR3L0or3+5Mkixbko8b9PoHTKvATp83q7aU5ngx5eCk/D9jWgyHTGz7ThhtDtu+b",
-	"4UO0waX1c6CwRETgovISUKmyXAkwXF1Q8FGkKf458g5AWU5qraXyL1q2TbM5MWzDsKATIUyCUzgDN2j6",
-	"YJ7v4fZZN2IYbAXDMsziufBGHoYg3MwphmjExfjPGaxPNL21GXlbW92eKNo7zWxoP7Cxvcb8N2j0VBHF",
-	"1VxeI22ENrSj9BRzFM9ayEasxHaxXe4ShmrKFk5TVxjP2gzVsUjFdG3XvhoSHdBKQMJmdsCqnc3yPWeu",
-	"x9L56zsYUwRsL5qbKqSoivYNLB1px4ZAenQCihQoovm8p2CsAbaJjN0qPG/iiN91V17rVzaXQXXX75eQ",
-	"bA+Gw88G7FnKvXQifCiTMniS8JledQCQER8Nt9bNUxG+2cIlXbeEpz1Fz23cwHndKBt8hlvnVfGZ9x5H",
-	"aEOEN69qCPD1Wtavk57HOaV0rWnBoixWOOukqMOUsNMsSbRBw2RdB4u+Id/Q6aC5AJf5VpnJFlmSjJBx",
-	"+/09jK3nION626xclK7mWG4FzNFRalXib2tpZNM++cuWs+cgyRs+yxyvoA1bZ3x85y/+W4Hx7UHJbyx0",
-	"aYyQ9WaJLTMTWpcy0I350WI8CKx5ZC85Vuxwe3pHcI4QRynJSZzQUtEubIwsNVdjio/G3oiNPWSBseez",
-	"sWcw+rUPraNhH+CfMPau0TFijFROR5BJiMqQvgjJMrfU0nO48Nlk6csyIULDll6989bLXIhNf5SBzzRL",
-	"0MY/FvLmg7LWDdc6xY3TGH9OQMTAXgubPXDqqt/fLrQ79aYP1z5sAjSe6dHmZu1liZz+htG/DofDW1jb",
-	"RmtNd6kd+nae0+j+B7Hi8bnjeFjtzBO7BVujra5tYIssJ3vs2xcHRxe5ZZNNu5cbrAEScJv2PJMa+V9e",
-	"Vu0R/T5Dl16BkKBKxwPNIKBpOr9gVhNb8bP4rxVvYiwpG4QxYWe1w+6woxbfgiX2Ji+TXK0YDYfhhY7m",
-	"FdU7SaZhgBBE3e+zHkpMOzrCz2q5R5EIHw2HWyHBI8lfnEHlTVIk63wmn+GLD0N0myYZuTE2S0Kn/MLh",
-	"Fzd8O+CjkDnNYAdZhqz6LNwabm2FxI3LIGRaC6bTyiE0JBNtyno9tWUs6a/1XRq9lpXcqCx6l70sd6k6",
-	"mU+1mHUDx7V/X/N6r1c/buDV1otrf9n8OM/rWQySkmTLicq6fwFV3/bkDPcRORXfQ46g4EPAzX+CrADy",
-	"P6JKr/HxdV76I7D8V91Ye6evbh2rRIpWGf+O4tiyD7NlXYbYKhSSBmQqEj9Vy583kkWSLLskh2fCIAx4",
-	"Zi1ulCXauiHDu92QBty+mYT3Ru/eN12SZ9KAsnVS3ehSqljVZ+u9FNJODQ+lkWm7yyPv9/col4f4mhTU",
-	"IuVJ0O+vSzkzVUyNDUIl25NxXsgF+Q9j2Y7vR6wV0zdieV5MA/YXiAHTf4OyyDaBGAoDpiOTGIzlvgsk",
-	"QZHnTp/6ZTze0BIrZTpSh6j4ZQwUUpd5QkoeSCxxJKDbKrRLcewLbQ7KHf2VzrEwkOr74SG9uqLHleIX",
-	"Xd7yNuZGK9o+g29cjoUnlQhtQDY5rZyok9mamSLLcQmYW8D1LhxsaXprLHgxnYEqphgF7lswlM0CN5AF",
-	"DbuTChOsHNouze52cuXQHq2S9bTEXX3iNuJHj+7+qGok6dj3C1biCro33b9VmHeX0aWEHmVhzA0vw1BV",
-	"ZnUC9mj4yPVv2RS+hKJETKCs13KDUoQOMIXN1IChgq5gdN1ef77osZSLdU0zv+vJgV5/bB/nX1Sdv2jG",
-	"8uIO5A4eTSwUuEJrWAOWw8Gryd/weVkxaHKHb2E3bxXPcwLnNoHKNTgtAVBMCxn7rmsOf8N5LUQFZAya",
-	"hQ7AFbY0eYUIs2q8Tq3scxTtGLktrtsVnOTbfkZ0VVrdAlUGp+EHnm41QhYHHwm7FPhxrkE1+ZMMMq7i",
-	"M7OmhbBfXy+7L9e/i1A8BV0CuUvJ/iS/5TNZlQtbNisjD5vW/0T7spk0G31u04pUeaJOE2IfciBkFs1Z",
-	"v+8iE9c4CTLGMnltU9iD4ZCUn3O9dCtfu6Jtpzcf5MyFh6g5lSbNiomBhq0iJYqql09obEJHOXSArU3u",
-	"8ximVsu2suO1Qi41eqLZtG5YagwHGqW0aggZ7MXCZEjVmjRi9eZvqbxX21w6WLam5DNwXWMDhKQqi00Y",
-	"/KOo6pq+JT3tzqs3bbajZVPDwqvrcGPV+B4US0f4+fVbs7voi6q3e7FNU9MptsREX1zbreO7e+q7yqat",
-	"V23OkD65+blUQn89g2gBTl1NitlMyFlwPxe7M96pPe3V9EhXEqAJSbs77F+bQVj/6fsvEXhVq75P7NXY",
-	"os/BNKVT1Nr5klOOKp7oZpXS/UES8uwWsPd2de4lgAYkOmsOGYwdFI8LYzLy85r2LVjqfcTIooLshmO5",
-	"FF80rJFFyBBqmLdrbIeQcmnEYsQOuNYrLmHVCeMCeZEyefMhmrfKtBa/p8aSL0wBSULVMzK16D9W+UAk",
-	"VoMZMerVQ0d1jr0gZQeBX/3uitduYqD6X5fZdBvWOq3fQvEugfi/sPZdBox3iEGJmPwcQtCI7/H0rO8v",
-	"b5GDedVXvsYHPNp0vEagGcxSBezApo5koQiUQd6ZxXGwBCYmYE9tYari5ZVEe2f863rcf8PTcDN0HMKr",
-	"57emF/fFKUjQTY1iq+5uG1MwSkR3GxxsU3DtfwPbEdjEMKbctkQsoRi79uqFm/DOzcLM9maecLG0TR3X",
-	"ryxlBFSWgplDoQdURrOA5ts2qfEFkbcAuW6/mhDduwKQptq8+RC7lvOyxVYS+y01xNg3kPlJebqC8eAw",
-	"hwjBLVRGvZpwDSeFSq7bgGE7AEJWY65IKQtgRwjkq1umXmQxJJjqfOpafGwiqN+Xher3l8FaPuv3MWzp",
-	"91uVg6YiLwXFOrjQrha26Lf43BZEhfoQmwk9fyxt8QmETHkibJ80CAkpwbITmOC07AjSPOEGCMA5g3nm",
-	"klW5yhgNOjji2E+JKG7TxF23i2auxG4YSsnAnnPMqQb26tBnFki683Z3w4GA2ePGnRhjSR0iJQQqtABr",
-	"bXiagmQxl5J6UJukrgnC8Ixwh+qq1K/SI919bLaWstwcsKpOmif2m2AwcLUlQ6il4sYtCIwWHPE+0KO3",
-	"iCpovBj6jTzABKS9ksPOG9wFsXmSqYrCT40T/a+AnF+fc23TZCv2n8A7H4vlqXip+8OP462VcvSX4a5/",
-	"6OL11/Ly71VeXmLXdfXltgx9jBtkhWept4luqVsvM03fybo02IX1ep9Sn+EVOT9tgHpwm2X9HAL2/p/O",
-	"LP86TVzb8U/SwnX7653AYVkoak/DVpvyBtE27jYsu3ADO2wVzFsAQTCWL9ZgecvEK2Fzy2Y99NsIiFtD",
-	"9Z5icwWXLt+P1agK5kvVNNuDsQ6s22hh/if0JJrL62LeFsz7d+HVFgWfxq9X2JhwcYLo9yWMQyf6oDws",
-	"UqEHvCM78MMPq1xfRlN03UYWa7/dXoMhTmcrRvDl8t340cO7P6ov9Pz4o8OrlR7caynlPav0yT3m6LpN",
-	"s80pu1UjXwuT32EUl7m83w9rFglZkU7pWtEJJAKjVns9EHVXaZilIA3WHHtCsqcZ2woePFjpuWqyXBAE",
-	"1wSMJj0EE5A6ayoeaxdbTBrWFxK2gyzUctMy/4D0jGV196kNtfGHbAL4xpRAq6YB+wIMuG/+rmyjI12Z",
-	"sNuEYpY5XCH1BHSGnAujRpzs138TvRFoTcv95af/wnbDcHMqEtD0T9ZLhDY+U8BjxCfoPOEXPm7lmc/O",
-	"lDCAv+UJj8Bn6SIWiGIgAfRZmp2Cz4o8yTi2R3IVzQU+mSnIfTZLsonPNOBjnxHGFbTPkGu4Ap9FZzH+",
-	"rE4BCdlAovVCJIkO6z83kSxLcp4pY3+iE8BjVMYtaTlyCFkPkQybT/eONnf39veO9jZW3tksNKh6R6qr",
-	"JOhROwEzSbAVCTMfTrBHhP9euWe3unbSeakOb2yfblksd2ff40QkMUjfQnp5NK9gxL1DIWcJTBMxIwBz",
-	"xuqvNiyO+3nZcIPTlCAAylPVzVTUSmUhfDapG1b6z3VWBWP5KKjv0kqr1gjW0wLmsNrUKCReajbNgoaM",
-	"hhs0s32TBv0G78Ayl8jdrrWufeW1xgtsCp4ITZSyHl0dtZMAl0XumrSd97KKifpqAf75LQBGmaunjz01",
-	"X4//D3D8thtKr3KA9bv1Vyb4AzDBrwji2seO7fT5lMdMyEVSaLw4LdwM3cVaLQ7o+H8XZuWlll3/OUvl",
-	"FH5sKu0fKUmIMCu6Sn1F2g7w8VdZ+yPImgO4LJ1/pr+6W3+I4y+6Tr/4evh/hMOvv9pBfT/gSeLac8vu",
-	"595KKQPTePZavrvwLQ2Q0IPh0CWZYwHNq3yxdb8BekH+qKEL9nYHRK5xXAWlLWw2+Zvhw87ixGt3X+Bv",
-	"COEqb73tSMo+rv4fl2+GD7/MlC8pPVT+BzK3FK3qUbpQOKgIyvtIHtIVJa2RrlYvlXv3Hn2O1TsP371H",
-	"r4KyPM57axO80wY89ewVp7J9RVldVhtggYquOTR0URmW0gqVuAvbRpubXTeuBOVDW04I9GkUOKBVkGQR",
-	"T0YPh8OhvUKYz7qofAxGCZjoQZ2ho8xfzbnEqi8yKUyGvl1Qu4ZuV1ed0WosvwIiuRVT1nGRyYWC8iZH",
-	"xidUm6H/fQ25H6sqNpVopcLe3UTYzPryFOMakWzzg72V5bJIyv9bw1FYZ+VXiXSS9wbUGU9MUeGeu7qe",
-	"lsHQbRi0m6zRT7k8Vz0JSxxgt3n/bWOQGqm4OsoahdeoNDWIIdV3/f76vwcA",
+	"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",
+	"0f/26u3V/zcA",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
