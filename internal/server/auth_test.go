@@ -28,10 +28,10 @@ func TestAuth(t *testing.T) {
 		{"mehrsegmentig ohne X-User-Id", http.MethodGet, "/files/list", authHeader, http.StatusUnprocessableEntity},
 		{"health ohne Key", http.MethodGet, "/health", nil, http.StatusOK},
 		{"health HEAD ohne Key", http.MethodHead, "/health", nil, http.StatusOK},
-		// WebSocket authentifiziert per erster Nachricht, nicht per Header.
-		{"websocket ohne Key", http.MethodGet, "/api/terminals/abc?user_id=u1", http.Header{"X-User-Id": {"u1"}, "Upgrade": {"websocket"}}, http.StatusNotImplemented},
+		// Ohne Upgrade ist es ein normaler Proxy-Request und braucht den Key. Den WebSocket
+		// selbst (Auth per erster Nachricht) prüft TestTerminalWebSocket.
 		{"terminal-GET ohne Key", http.MethodGet, "/api/terminals/abc", http.Header{"X-User-Id": {"u1"}}, http.StatusUnauthorized},
-		{"terminal-GET mit Key", http.MethodGet, "/api/terminals/abc", withUser, http.StatusNotImplemented},
+		{"terminal-GET mit Key", http.MethodGet, "/api/terminals/abc", withUser, http.StatusBadGateway},
 		{"ungültiger Context", http.MethodGet, "/files/list", http.Header{"Authorization": {"Bearer " + testKey}, "X-User-Id": {"u1"}, "X-Terminal-Context-Id": {"team:1"}}, http.StatusBadRequest},
 		{"unbekannte Policy", http.MethodGet, "/p/dev/files/list", withUser, http.StatusNotFound},
 	}
@@ -49,14 +49,14 @@ func TestAuth(t *testing.T) {
 }
 
 func TestAuthEmptyKeyRejectsAll(t *testing.T) {
-	rec := serve(t, New(":0", "").Handler, http.MethodGet, "/api/v1/policies", "", http.Header{"Authorization": {"Bearer "}})
+	rec := serve(t, New(":0", "", unavailable()).Handler, http.MethodGet, "/api/v1/policies", "", http.Header{"Authorization": {"Bearer "}})
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rec.Code)
 	}
 }
 
 func TestPolicyLifecycle(t *testing.T) {
-	h := New(":0", testKey).Handler
+	h := New(":0", testKey, unavailable()).Handler
 	call := func(method, path, body string) (int, string) {
 		rec := serve(t, h, method, path, body, authHeader)
 		return rec.Code, rec.Body.String()
@@ -122,10 +122,10 @@ func TestPolicyLifecycle(t *testing.T) {
 		}
 	}
 
-	// Mit gespeicherter Policy geht der Request bis zum (noch fehlenden) Proxy durch.
+	// Mit gespeicherter Policy geht der Request bis zum Backend, das hier kein Kubernetes hat.
 	rec := serve(t, h, http.MethodGet, "/p/dev/files/list", "", http.Header{"Authorization": {"Bearer " + testKey}, "X-User-Id": {"u1"}})
-	if rec.Code != http.StatusNotImplemented {
-		t.Errorf("proxy known policy = %d, want 501", rec.Code)
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("proxy known policy = %d, want 502", rec.Code)
 	}
 
 	if code, body := call(http.MethodDelete, "/api/v1/policies/dev", ""); code != 200 || body != `{"ok":true}`+"\n" {

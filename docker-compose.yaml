@@ -2,9 +2,18 @@ services:
   chatbox:
     image: ghcr.io/jbrozy/chatbox:latest
     build: .
+    # Bei jedem `docker compose up` aus dem lokalen Code bauen, nie aus der Registry ziehen.
+    pull_policy: build
     environment:
       API_KEY: ${CHATBOX_API_KEY:?CHATBOX_API_KEY in .env setzen}
       LOG_LEVEL: ${CHATBOX_LOG_LEVEL:-debug}
+      # Terminals als Geschwister-Container im Netz "chatbox" statt als Kubernetes-Pods.
+      TERMINAL_BACKEND: docker
+      TERMINAL_DOCKER_NETWORK: chatbox
+    # Zugriff auf den Docker-Socket ist praktisch Root auf dem Host. Nur für lokale Entwicklung.
+    user: "0:0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "3000:3000"
     healthcheck:
@@ -14,6 +23,15 @@ services:
       start_period: 5s
       retries: 3
     restart: unless-stopped
+    depends_on:
+      open-terminal-image:
+        condition: service_completed_successfully
+
+  # Zieht nur das Terminal-Image, damit der erste Terminal-Start nicht auf den Download wartet.
+  open-terminal-image:
+    image: ghcr.io/open-webui/open-terminal:latest
+    entrypoint: ["true"]
+    restart: "no"
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -30,6 +48,11 @@ services:
       chatbox:
         condition: service_healthy
     restart: unless-stopped
+
+networks:
+  # Fester Name, weil chatbox die Terminal-Container per TERMINAL_DOCKER_NETWORK hier anhängt.
+  default:
+    name: chatbox
 
 volumes:
   open-webui:

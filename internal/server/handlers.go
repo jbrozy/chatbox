@@ -1,15 +1,18 @@
 package server
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jbrozy/chatbox/internal/api"
+	"github.com/jbrozy/chatbox/internal/terminal"
 )
 
 const (
@@ -20,13 +23,29 @@ const (
 
 // Handler implementiert api.ServerInterface.
 type Handler struct {
-	policies *policyStore
+	policies  *policyStore
+	backend   Backend
+	apiKey    string
+	transport http.RoundTripper
+	specs     *specCache
+
+	// Wartezeiten zwischen Wiederholungen, in Tests verkürzt.
+	specFetchDelay time.Duration
+	retryDelay     time.Duration
 }
 
 var _ api.ServerInterface = (*Handler)(nil)
 
-func NewHandler() *Handler {
-	return &Handler{policies: newPolicyStore()}
+func NewHandler(apiKey string, backend Backend) *Handler {
+	return &Handler{
+		policies:       newPolicyStore(),
+		backend:        backend,
+		apiKey:         apiKey,
+		transport:      newTransport(),
+		specs:          &specCache{entries: map[string]cachedSpec{}},
+		specFetchDelay: specFetchDelay,
+		retryDelay:     time.Second,
+	}
 }
 
 // --- System ---
@@ -39,8 +58,7 @@ func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 // --- Discovery ---
 
 func (h *Handler) GetOpenapiJson(w http.ResponseWriter, r *http.Request) {
-	// TODO: Spec vom Pod des Pseudo-Users "system" holen, security entfernen, 5 min pro Policy cachen
-	notImplemented(w)
+	h.toolSpec(w, r, defaultPolicy, "Failed to fetch OpenAPI spec from terminal instance")
 }
 
 func (h *Handler) GetPPolicyIdOpenapiJson(w http.ResponseWriter, r *http.Request, policyId string) {
@@ -48,7 +66,7 @@ func (h *Handler) GetPPolicyIdOpenapiJson(w http.ResponseWriter, r *http.Request
 		writePolicyNotFound(w, policyId)
 		return
 	}
-	notImplemented(w)
+	h.toolSpec(w, r, policyId, "Failed to fetch OpenAPI spec")
 }
 
 // /api/config, /system und /info sind Open-Terminal-Endpunkte und gehen an den Pod.
@@ -116,7 +134,8 @@ func (h *Handler) PutApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	// TODO: Policy- und Spec-Cache invalidieren, sobald es sie gibt
+	// Laufende Instanzen behalten ihre Einstellungen bis zum Refresh, wie in terminals.
+	h.specs.invalidate(policyId)
 	writeJSON(w, http.StatusOK, h.policies.upsert(policyId, m))
 }
 
@@ -125,6 +144,7 @@ func (h *Handler) DeleteApiV1PoliciesPolicyId(w http.ResponseWriter, r *http.Req
 		writePolicyNotFound(w, policyId)
 		return
 	}
+	h.specs.invalidate(policyId)
 	writeJSON(w, http.StatusOK, api.OkResponse{Ok: api.OkResponseOkTrue})
 }
 
@@ -148,19 +168,107 @@ func (h *Handler) PutApiV1PoliciesPolicyIdLifecycle(w http.ResponseWriter, r *ht
 // --- Instanzen ---
 
 func (h *Handler) GetApiV1Status(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w)
+	infos, err := h.backend.List(r.Context())
+	if err != nil {
+		writeBackendError(w, err)
+		return
+	}
+	cfg := h.backend.Defaults()
+	writeJSON(w, http.StatusOK, api.AdminStatus{
+		Status:                     api.AdminStatusStatusTrue,
+		Backend:                    api.AdminStatusBackend(cfg.Backend),
+		Image:                      cfg.Image,
+		IdleTimeoutMinutes:         cfg.IdleTimeoutMinutes,
+		ActiveTerminals:            len(infos),
+		PolicyCount:                h.policies.count(),
+		ActiveWebsocketConnections: h.backend.ActiveConnections(),
+	})
 }
 
 func (h *Handler) GetApiV1Terminals(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w)
+	infos, err := h.backend.List(r.Context())
+	if err != nil {
+		writeBackendError(w, err)
+		return
+	}
+	out := make([]api.TerminalInstance, 0, len(infos))
+	for _, i := range infos {
+		t := api.TerminalInstance{
+			UserId:             i.UserID,
+			PolicyId:           i.PolicyID,
+			ContextId:          i.ContextID,
+			Status:             api.TerminalInstanceStatus(i.Status),
+			InstanceId:         i.UID,
+			InstanceName:       i.Name,
+			Host:               i.Host,
+			IdleSeconds:        i.IdleSeconds,
+			IdleTimeoutMinutes: i.IdleTimeoutMinutes,
+		}
+		if i.Host != "" {
+			t.Port = new(terminal.Port)
+		}
+		if !i.LastActive.IsZero() {
+			t.LastActiveAt = new(i.LastActive.UTC())
+		}
+		out = append(out, t)
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *Handler) PostApiV1TerminalsStop(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w)
+	var body api.StopRequest
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	if body.UserId == "" {
+		writeValidationError(w, "Field required", "missing", "body", "user_id")
+		return
+	}
+	f := terminal.Filter{
+		UserID:    &body.UserId,
+		PolicyID:  new(cmp.Or(deref(body.PolicyId), defaultPolicy)),
+		ContextID: new(cmp.Or(deref(body.ContextId), defaultContext)),
+	}
+	res, err := h.backend.Refresh(r.Context(), f, false, false)
+	if err != nil {
+		writeBackendError(w, err)
+		return
+	}
+	if res.Matched == 0 {
+		writeError(w, http.StatusNotFound, "Terminal not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, api.StopResponse{Matched: res.Matched, Stopped: res.Refreshed, SkippedActive: res.SkippedActive})
 }
 
 func (h *Handler) PostApiV1TerminalsRefresh(w http.ResponseWriter, r *http.Request) {
-	notImplemented(w)
+	var body api.RefreshRequest
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	f := terminal.Filter{UserID: body.UserId, PolicyID: body.PolicyId, ContextID: body.ContextId}
+	onlyIdle := body.OnlyIdle == nil || *body.OnlyIdle
+	reset := body.Reset != nil && *body.Reset
+	res, err := h.backend.Refresh(r.Context(), f, onlyIdle, reset)
+	if err != nil {
+		writeBackendError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, api.RefreshResponse{
+		Matched: res.Matched, Refreshed: res.Refreshed, Reset: res.Reset, SkippedActive: res.SkippedActive,
+	})
+}
+
+func writeBackendError(w http.ResponseWriter, err error) {
+	slog.Error("terminal backend", "err", err)
+	writeError(w, http.StatusServiceUnavailable, err.Error())
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // --- Interaktive Terminals ---
@@ -183,7 +291,7 @@ func (h *Handler) GetApiTerminalsSessionId(w http.ResponseWriter, r *http.Reques
 		h.proxy(w, r, r.URL.Path)
 		return
 	}
-	h.terminalWebSocket(w, r, defaultPolicy, sessionId)
+	h.terminalWebSocket(w, r, "", sessionId)
 }
 
 func (h *Handler) GetPPolicyIdApiTerminalsSessionId(w http.ResponseWriter, r *http.Request, policyId string, sessionId string, params api.GetPPolicyIdApiTerminalsSessionIdParams) {
@@ -192,11 +300,6 @@ func (h *Handler) GetPPolicyIdApiTerminalsSessionId(w http.ResponseWriter, r *ht
 		return
 	}
 	h.terminalWebSocket(w, r, policyId, sessionId)
-}
-
-func (h *Handler) terminalWebSocket(w http.ResponseWriter, r *http.Request, policyID, sessionID string) {
-	// TODO: WebSocket terminieren, Auth-Nachricht prüfen/austauschen, Frames zum Pod kopieren
-	notImplemented(w)
 }
 
 // --- Proxy ---
@@ -275,16 +378,6 @@ func (h *Handler) policyProxy(w http.ResponseWriter, r *http.Request, policyID, 
 		return
 	}
 	h.forward(w, r, policyID, path)
-}
-
-// forward ist der gemeinsame Einstieg für alle Requests, die an den Pod des Users gehen.
-func (h *Handler) forward(w http.ResponseWriter, r *http.Request, policyID, path string) {
-	if _, err := contextID(r.Header.Get("X-Terminal-Context-Id")); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	// TODO: Workspace finden/anlegen, Request umschreiben und streamen
-	notImplemented(w)
 }
 
 // requireUserID prüft X-User-Id für Requests, die nicht über die generierten Parameter laufen.

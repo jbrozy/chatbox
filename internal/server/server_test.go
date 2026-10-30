@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/jbrozy/chatbox/internal/terminal"
 )
 
 const testKey = "test-key"
@@ -16,7 +18,12 @@ var authHeader = http.Header{"Authorization": {"Bearer " + testKey}}
 
 func do(t *testing.T, method, path string, header http.Header) *httptest.ResponseRecorder {
 	t.Helper()
-	return serve(t, New(":0", testKey).Handler, method, path, "", header)
+	return serve(t, New(":0", testKey, unavailable()).Handler, method, path, "", header)
+}
+
+// unavailable ist ein Backend ohne Kubernetes: Jeder Terminal-Zugriff schlägt fehl.
+func unavailable() *fakeBackend {
+	return &fakeBackend{err: terminal.ErrUnavailable}
 }
 
 func serve(t *testing.T, h http.Handler, method, path, body string, header http.Header) *httptest.ResponseRecorder {

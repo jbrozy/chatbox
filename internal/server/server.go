@@ -13,8 +13,9 @@ import (
 
 // New baut den HTTP-Server mit allen Routen aus openapi.json.
 // apiKey ist der Bearer-Key, den Open WebUI bei `auth_type: bearer` mitschickt.
-func New(addr, apiKey string) *http.Server {
-	h := NewHandler()
+// backend stellt die Open-Terminal-Instanzen bereit.
+func New(addr, apiKey string, backend Backend) *http.Server {
+	h := NewHandler(apiKey, backend)
 
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware, authMiddleware(apiKey))

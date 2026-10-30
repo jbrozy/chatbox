@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jbrozy/chatbox/internal/api"
+	"github.com/jbrozy/chatbox/internal/terminal"
 )
 
 // policyStore hält Policies und Lifecycle-Einstellungen im Speicher.
@@ -61,6 +62,21 @@ func (s *policyStore) get(id string) (api.PolicyResponse, bool) {
 	defer s.mu.RUnlock()
 	p, ok := s.policies[id]
 	return p.response(), ok
+}
+
+// spec liefert die Policy-Daten für die Provisionierung. Die Map wird nie verändert,
+// nur bei PUT ersetzt, und darf deshalb ohne Kopie geteilt werden.
+func (s *policyStore) spec(id string) (terminal.Spec, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	p, ok := s.policies[id]
+	return p.data, ok
+}
+
+func (s *policyStore) count() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.policies)
 }
 
 func (s *policyStore) exists(id string) bool {

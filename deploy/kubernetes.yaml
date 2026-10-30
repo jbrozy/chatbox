@@ -1,0 +1,148 @@
+# chatbox im Cluster. Terminal-Pods landen im eigenen Namespace chatbox-terminals.
+#
+#   kubectl apply -f deploy/kubernetes.yaml
+#   kubectl -n chatbox create secret generic orchestrator --from-literal=api-key=$(openssl rand -hex 32)
+#
+# In Open WebUI als Terminal-Server eintragen: http://orchestrator.chatbox.svc.cluster.local:3000,
+# Auth "Bearer", Key = api-key aus dem Secret.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chatbox
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chatbox-terminals
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orchestrator
+  namespace: chatbox
+---
+# Nur die Objekte, die internal/terminal anlegt, und nur im Terminal-Namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: orchestrator
+  namespace: chatbox-terminals
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, create, delete]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, create, update, delete]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [create, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orchestrator
+  namespace: chatbox-terminals
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: orchestrator
+subjects:
+  - kind: ServiceAccount
+    name: orchestrator
+    namespace: chatbox
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: chatbox
+spec:
+  # Policies und Aktivität liegen im Speicher, deshalb genau eine Replica.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orchestrator
+    spec:
+      serviceAccountName: orchestrator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: orchestrator
+          image: ghcr.io/jbrozy/chatbox:latest
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator
+                  key: api-key
+            - name: TERMINAL_NAMESPACE
+              value: chatbox-terminals
+            - name: LOG_FORMAT
+              value: json
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: chatbox
+spec:
+  selector:
+    app.kubernetes.io/name: orchestrator
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+# Terminal-Pods nur für den Orchestrator erreichbar. Wirkt nur mit einem CNI, das NetworkPolicies
+# umsetzt (z. B. Calico, Cilium).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: terminals-from-orchestrator
+  namespace: chatbox-terminals
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: chatbox
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: chatbox
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: orchestrator
+      ports:
+        - port: 8000

@@ -69,13 +69,17 @@ func isWebSocket(r *http.Request) bool {
 }
 
 func validBearer(header, apiKey string) bool {
-	// Ohne konfigurierten Key würde "Bearer " sonst als gültig durchgehen.
-	if apiKey == "" {
-		return false
-	}
 	scheme, token, ok := strings.Cut(header, " ")
 	if !ok || !strings.EqualFold(scheme, "Bearer") {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(strings.TrimSpace(token)), []byte(apiKey)) == 1
+	return validToken(strings.TrimSpace(token), apiKey)
+}
+
+func validToken(token, apiKey string) bool {
+	// Ohne konfigurierten Key würde ein leerer Token sonst als gültig durchgehen.
+	if apiKey == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(apiKey)) == 1
 }
