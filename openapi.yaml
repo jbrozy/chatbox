@@ -1,0 +1,757 @@
+
+penapi: 3.1.0
+info:
+  title: chatbox-orchestrator
+  version: 0.1.0
+  summary: Per-User-Orchestrator für Open-Terminal-Pods hinter Open WebUI
+  description: |
+    Eigenimplementierung eines zu Open WebUI kompatiblen Terminal-Orchestrators.
+    Open WebUI erkennt ihn als „Orchestrator“, sobald `GET /api/v1/policies` mit 2xx
+    antwortet. Danach leitet Open WebUI alle Terminal-Anfragen über diesen Dienst, der
+    pro (User, Policy, Context) einen Open-Terminal-Pod im Namespace `openwebui-chatbox`
+    findet oder anlegt und die Anfrage durchreicht.
+
+    ## Herkunft der Angaben
+    - **[OWUI]**: Verhalten, das Open WebUI erwartet (abgeleitet aus dem Open-WebUI-Backend,
+      `routers/terminals.py`, `routers/configs.py`, `utils/terminals.py`, `utils/tools.py`,
+      sowie `AddTerminalServerModal.svelte`, Stand Oktober 2026). Muss exakt so umgesetzt werden.
+    - **[OT]**: Verhalten von Open Terminal 0.14.6 (Upstream-Container).
+    - **[Eigen]**: Designentscheidung dieses Orchestrators, frei änderbar.
+
+    ## Workspace-Schlüssel [Eigen]
+    Ein Workspace (= ein Pod) wird eindeutig bestimmt durch
+    `(X-User-Id, policy_id, X-Terminal-Context-Id ?? "default")`.
+    Ohne `/p/{policy_id}`-Prefix gilt `policy_id = "default"`.
+
+    ## Upstream-Vertrag zum Pod [OT]
+    - Pfad: `/p/{policy_id}` wird entfernt, der Rest unverändert weitergereicht.
+    - `Authorization` wird durch `Bearer <pod-api-key>` ersetzt (Key pro Pod, als Secret erzeugt).
+    - `X-User-Id` und `X-Session-Id` werden **unverändert** weitergereicht. Open Terminal
+      prüft bei Hintergrundprozessen, Terminal-Sessions und Notebooks, ob `X-User-Id`
+      zum Ersteller passt; fehlt der Header, schlagen diese Zugriffe fehl.
+    - `X-Terminal-Context-Id` wird nur zur Pod-Auswahl genutzt und nicht weitergereicht.
+    - Antworten werden ungepuffert gestreamt (`/execute?stream=true` liefert JSONL).
+
+    ## Timeouts [OWUI]
+    Open WebUI nutzt für proxied HTTP-Requests 10 s Connect- und 300 s Gesamt-Timeout
+    und versucht nicht erneut. Der Orchestrator soll beim ersten Request eines Users
+    deshalb **blockierend** auf den Pod warten (Empfehlung: max. 120 s), statt mit 503 zu antworten.
+  license:
+    name: proprietary
+servers:
+  - url: http://chatbox-orchestrator.chatbox-system.svc.cluster.local:3000
+    description: Cluster-intern (wird in Open WebUI als Terminal-URL eingetragen)
+
+security:
+  - orchestratorKey: []
+  - openWebUISession: []
+
+tags:
+  - name: System
+    description: Betriebs-Endpunkte für Kubernetes und Monitoring.
+  - name: Discovery
+    description: Endpunkte, die Open WebUI ohne konkreten User abfragt. Werden aus einem Cache pro Policy beantwortet, ohne einen Pod anzulegen.
+  - name: Policies
+    description: Policy-Verwaltung. Wird aus dem Admin-Dialog von Open WebUI aufgerufen.
+  - name: Terminals
+    description: Verwaltung laufender Workspaces.
+  - name: Proxy
+    description: Durchreichen an den Pod des Users.
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Liveness
+      description: "[OT/Eigen] Ohne Auth. Prüft nur, ob der Prozess lebt. Gleiche Antwort wie Open Terminal."
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /ready:
+    get:
+      tags: [System]
+      operationId: getReady
+      summary: Readiness
+      description: "[Eigen] Ohne Auth. 200, wenn die Kubernetes-API erreichbar und der Policy-Cache geladen ist, sonst 503."
+      security: []
+      responses:
+        "200":
+          description: Bereit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+        "503":
+          description: Nicht bereit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+
+  /metrics:
+    get:
+      tags: [System]
+      operationId: getMetrics
+      summary: Prometheus-Metriken
+      description: "[Eigen] Nur cluster-intern erreichbar machen (NetworkPolicy)."
+      security: []
+      responses:
+        "200":
+          description: Prometheus-Textformat
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /openapi.json:
+    get:
+      tags: [Discovery]
+      operationId: getToolSpecDefault
+      summary: Tool-Spec der Default-Policy
+      description: |
+        [OWUI] Open WebUI lädt beim Speichern der Verbindung und beim Start die OpenAPI-Spec
+        unter `{base_url}/openapi.json` und baut daraus die Tools für das Modell.
+        Gesendet wird **nur** `Authorization`, **kein** `X-User-Id`.
+
+        [Eigen] Antwort ist die unveränderte OpenAPI-Spec des Open-Terminal-Images der Policy,
+        z. B. einmalig von einem kurzlebigen Template-Pod geholt und pro Image-Tag gecacht.
+        Achtung: Open Terminal schreibt Live-Systemdaten (OS, User, CWD) in die Beschreibung
+        von `/execute`. Sie stammen dann vom Template-Pod.
+      responses:
+        "200":
+          description: OpenAPI-Spec von Open Terminal
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /p/{policy_id}/openapi.json:
+    get:
+      tags: [Discovery]
+      operationId: getToolSpecForPolicy
+      summary: Tool-Spec einer Policy
+      description: "[OWUI] Wie `/openapi.json`, aber für eine benannte Policy. Open WebUI baut die URL als `{url}/p/{policy_id}`."
+      parameters:
+        - $ref: "#/components/parameters/PolicyId"
+      responses:
+        "200":
+          description: OpenAPI-Spec von Open Terminal
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/config:
+    get:
+      tags: [Discovery]
+      operationId: getServerConfigDefault
+      summary: Feature-Flags (Default-Policy)
+      description: |
+        [OWUI] Wird vor dem Abruf des System-Prompts gelesen. Bei Orchestrator-Verbindungen
+        schickt Open WebUI dabei `X-User-Id: system`. Dafür darf kein Pod angelegt werden.
+
+        [Eigen] Requests mit `X-User-Id: system` beantworten `/api/config` und `/system` aus dem
+        Policy-Cache. Echte User-IDs werden an den Pod durchgereicht.
+      parameters:
+        - $ref: "#/components/parameters/XUserIdOptional"
+      responses:
+        "200":
+          description: Feature-Flags von Open Terminal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TerminalConfig" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /p/{policy_id}/api/config:
+    get:
+      tags: [Discovery]
+      operationId: getServerConfigForPolicy
+      summary: Feature-Flags einer Policy
+      description: Wie `/api/config`, für eine benannte Policy.
+      parameters:
+        - $ref: "#/components/parameters/PolicyId"
+        - $ref: "#/components/parameters/XUserIdOptional"
+      responses:
+        "200":
+          description: Feature-Flags von Open Terminal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TerminalConfig" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /p/{policy_id}/system:
+    get:
+      tags: [Discovery]
+      operationId: getSystemPromptForPolicy
+      summary: System-Prompt einer Policy
+      description: |
+        [OWUI] Wird nur abgefragt, wenn `/api/config` `features.system: true` liefert.
+        Mit `X-User-Id: system` aus dem Cache, sonst vom Pod des Users. Gilt analog für `/system` ohne Prefix.
+      parameters:
+        - $ref: "#/components/parameters/PolicyId"
+        - $ref: "#/components/parameters/XUserIdOptional"
+      responses:
+        "200":
+          description: System-Prompt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemPrompt" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/policies:
+    get:
+      tags: [Policies]
+      operationId: listPolicies
+      summary: Policies auflisten
+      description: |
+        [OWUI] **Erkennungsmerkmal.** „Verify Connection“ ruft diesen Endpunkt mit
+        `Authorization: Bearer <key>` auf. Jede 2xx-Antwort bedeutet „Orchestrator“.
+        Liefert er keine 2xx, prüft Open WebUI `GET /api/config` und behandelt den Dienst als normales Open Terminal.
+      responses:
+        "200":
+          description: Alle Policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Policy" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/policies/{policy_id}:
+    parameters:
+      - $ref: "#/components/parameters/PolicyId"
+    get:
+      tags: [Policies]
+      operationId: getPolicy
+      summary: Policy lesen
+      description: "[OWUI] Der Admin-Dialog liest `data` aus der Antwort. 404 wird als „neue Policy“ behandelt und ist kein Fehler."
+      responses:
+        "200":
+          description: Policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Policy" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Policies]
+      operationId: upsertPolicy
+      summary: Policy anlegen oder ersetzen
+      description: |
+        [OWUI] Body ist direkt das `PolicyData`-Objekt aus dem Admin-Dialog, ohne Wrapper.
+        Felder, die im Dialog leer sind, fehlen im Body. Fehlendes `storage` bedeutet „ephemeral“.
+
+        [Eigen] Laufende Pods werden nicht automatisch neu gestartet. Dafür `POST /api/v1/terminals/refresh`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyData" }
+      responses:
+        "200":
+          description: Gespeicherte Policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Policy" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [Policies]
+      operationId: deletePolicy
+      summary: Policy löschen
+      description: "[Eigen] Wird von Open WebUI nicht aufgerufen. Löscht alle Workspaces der Policy mit."
+      responses:
+        "204": { description: Gelöscht }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/policies/{policy_id}/lifecycle:
+    parameters:
+      - $ref: "#/components/parameters/PolicyId"
+    get:
+      tags: [Policies]
+      operationId: getLifecycle
+      summary: Lifecycle-Einstellungen lesen
+      description: |
+        [OWUI] Muss auch für eine noch **nicht existierende** Policy mit 200 und Defaults antworten.
+        Der Admin-Dialog fängt hier anders als bei der Policy kein 404 ab und zeigt sonst einen Ladefehler.
+        Open WebUI behandelt `data` als freies JSON und zeigt es im Lifecycle-Editor an.
+      responses:
+        "200":
+          description: Lifecycle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [Policies]
+      operationId: putLifecycle
+      summary: Lifecycle-Einstellungen setzen
+      description: "[OWUI] Body ist direkt das Lifecycle-Objekt aus dem Editor (freies JSON, oft `{}`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Lifecycle" }
+      responses:
+        "200":
+          description: Gespeicherter Lifecycle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleEnvelope" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/terminals:
+    get:
+      tags: [Terminals]
+      operationId: listWorkspaces
+      summary: Laufende Workspaces
+      description: "[Eigen] Für Admin-Zwecke und Debugging. Wird von Open WebUI nicht aufgerufen."
+      parameters:
+        - name: policy_id
+          in: query
+          schema: { type: string }
+        - name: user_id
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/terminals/refresh:
+    post:
+      tags: [Terminals]
+      operationId: refreshWorkspaces
+      summary: Workspaces neu starten
+      description: |
+        [OWUI] Aufgerufen über den „Refresh“-Button im Admin-Dialog. Open WebUI liest `refreshed`
+        aus der Antwort und zeigt die Anzahl an.
+
+        [Eigen] Semantik: Passende Pods werden gelöscht und beim nächsten Request mit der
+        aktuellen Policy neu angelegt. `reset: false` behält das PVC, `reset: true` löscht es mit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefreshResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/terminals/{session_id}:
+    get:
+      tags: [Proxy]
+      operationId: terminalWebSocketDefault
+      summary: Interaktives Terminal (WebSocket, Default-Policy)
+      description: |
+        WebSocket-Upgrade. OpenAPI kann WebSockets nicht vollständig beschreiben, deshalb hier das Protokoll:
+
+        **Eingehend von Open WebUI [OWUI]**
+        1. Upgrade-Request mit Headern `X-User-Id`, `X-Session-Id` (Chat-ID), optional
+           `X-Terminal-Context-Id`, sowie Query-Parameter `user_id` (gleicher Wert wie `X-User-Id`).
+        2. Erste Nachricht (Text, innerhalb von 10 s):
+           `{"type": "auth", "token": "<token>"}`.
+           Bei `auth_type: bearer` ist `token` der Orchestrator-Key, bei `auth_type: session`
+           das Open-WebUI-JWT des Users. Danach folgen Binär- und Textframes in beide Richtungen.
+
+        **Ausgehend zum Pod [OT]**
+        1. Upgrade zu `ws://<pod-ip>:8000/api/terminals/{session_id}` mit unverändertem `X-User-Id`.
+        2. Erste Nachricht: `{"type": "auth", "token": "<pod-api-key>"}`.
+        3. Danach Frames 1:1 in beide Richtungen kopieren, Frame-Typ (Text/Binär) beibehalten.
+
+        **Konsequenz [Eigen]:** Ein reiner HTTP-Reverse-Proxy reicht hier nicht. Der Orchestrator
+        muss die WebSocket-Verbindung terminieren, die erste Nachricht prüfen und austauschen.
+
+        **Close-Codes** (wie Open Terminal und Open WebUI):
+        `4001` Auth fehlgeschlagen oder Timeout, `4003` verboten (z. B. User-Mismatch),
+        `4004` Session oder Policy unbekannt, `1011` Pod nicht erreichbar.
+
+        Die Session selbst wird vorher von Open WebUI per `POST /api/terminals` (durchgereicht) angelegt.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/XUserId"
+        - $ref: "#/components/parameters/XSessionId"
+        - $ref: "#/components/parameters/XTerminalContextId"
+        - name: user_id
+          in: query
+          required: true
+          description: "[OWUI] Identisch mit `X-User-Id`. [Eigen] Bei Abweichung mit 4003 schließen."
+          schema: { type: string }
+        - name: Upgrade
+          in: header
+          required: true
+          schema: { type: string, const: websocket }
+      security: []
+      responses:
+        "101": { description: Switching Protocols, danach Auth per erster Nachricht }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /p/{policy_id}/api/terminals/{session_id}:
+    get:
+      tags: [Proxy]
+      operationId: terminalWebSocketForPolicy
+      summary: Interaktives Terminal (WebSocket, benannte Policy)
+      description: Wie `/api/terminals/{session_id}`, für eine benannte Policy.
+      parameters:
+        - $ref: "#/components/parameters/PolicyId"
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/XUserId"
+        - $ref: "#/components/parameters/XSessionId"
+        - $ref: "#/components/parameters/XTerminalContextId"
+        - name: user_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: Upgrade
+          in: header
+          required: true
+          schema: { type: string, const: websocket }
+      security: []
+      responses:
+        "101": { description: Switching Protocols, danach Auth per erster Nachricht }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /p/{policy_id}/{proxy_path}:
+    summary: Catch-all-Proxy zum Pod (benannte Policy)
+    description: |
+      **`proxy_path` umfasst beliebig viele Pfadsegmente** (in Go 1.22: `/p/{policy_id}/{proxy_path...}`).
+      Gilt ebenso ohne Prefix als `/{proxy_path}` für die Default-Policy, sofern der Pfad
+      nicht zu einem der oben definierten Endpunkte gehört.
+
+      [OT] Durchgereicht werden insbesondere: `/execute`, `/execute/{process_id}/…`,
+      `/files/…` (list, read, display, view, write, replace, mkdir, delete, move, upload,
+      archive, grep, glob, search, matches, compare, cwd, serve/…), `/skills`, `/skills/read`,
+      `/ports`, `/proxy/{port}/…`, `/api/terminals` (POST/GET/DELETE), `/api/terminals/user/…`,
+      `/notebooks/…`.
+
+      [Eigen] Ablauf pro Request:
+      1. `X-User-Id` fehlt → 400. Auth prüfen → 401.
+      2. Workspace-Schlüssel bilden, Pod nachschlagen (Singleflight pro Schlüssel).
+      3. Kein Pod → anlegen und blockierend auf `GET /health` des Pods warten.
+      4. Request umschreiben (siehe Upstream-Vertrag in `info.description`) und streamen.
+      5. Letzten Zugriff des Workspaces aktualisieren (Idle-Cleanup).
+    parameters:
+      - $ref: "#/components/parameters/PolicyId"
+      - name: proxy_path
+        in: path
+        required: true
+        description: Restpfad inklusive `/`, wird unverändert an den Pod weitergegeben.
+        schema: { type: string }
+      - $ref: "#/components/parameters/XUserId"
+      - $ref: "#/components/parameters/XSessionId"
+      - $ref: "#/components/parameters/XTerminalContextId"
+    get: &proxyOperation
+      tags: [Proxy]
+      summary: Durchreichen an den Pod
+      responses:
+        "2XX":
+          description: Antwort des Pods, unverändert und ungepuffert gestreamt.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "504": { $ref: "#/components/responses/ProvisioningTimeout" }
+    post: *proxyOperation
+    put: *proxyOperation
+    patch: *proxyOperation
+    delete: *proxyOperation
+    head: *proxyOperation
+    options: *proxyOperation
+
+components:
+  securitySchemes:
+    orchestratorKey:
+      type: http
+      scheme: bearer
+      description: |
+        [OWUI] `auth_type: bearer`. Statischer Key des Orchestrators aus dem Secret
+        (z. B. `CHATBOX_API_KEY`). Der Orchestrator vertraut in diesem Modus dem `X-User-Id`-Header,
+        der Dienst darf deshalb nur für Open WebUI erreichbar sein (NetworkPolicy).
+    openWebUISession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        [OWUI] `auth_type: session`. Open WebUI schickt das JWT des eingeloggten Users.
+        [Eigen] Validieren entweder lokal (HS256 mit `WEBUI_SECRET_KEY`, Claim `id`) oder per
+        `GET {OPEN_WEBUI_URL}/api/v1/auths/` mit dem Token (Ergebnis kurz cachen).
+        Die User-ID aus dem Token muss mit `X-User-Id` übereinstimmen, sonst 403.
+        Achtung: Discovery-Requests (`/openapi.json`, „Verify Connection“, Policy-Admin) kommen
+        in diesem Modus **ohne** Token. Sie müssen per NetworkPolicy abgesichert werden oder
+        es wird für sie zusätzlich ein Bearer-Key akzeptiert.
+
+  parameters:
+    PolicyId:
+      name: policy_id
+      in: path
+      required: true
+      description: "Name der Policy, URL-kodiert. Erlaubte Zeichen [Eigen]: `^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?$` (DNS-label-tauglich für Pod-Namen)."
+      schema:
+        type: string
+        pattern: "^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?$"
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      description: Terminal-Session-ID von Open Terminal (vorher per `POST /api/terminals` angelegt).
+      schema: { type: string }
+    XUserId:
+      name: X-User-Id
+      in: header
+      required: true
+      description: "[OWUI] Open-WebUI-User-ID (UUID). Teil des Workspace-Schlüssels, wird an den Pod weitergereicht."
+      schema: { type: string }
+    XUserIdOptional:
+      name: X-User-Id
+      in: header
+      required: false
+      description: "[OWUI] Bei Discovery-Requests entweder fehlend oder `system`."
+      schema: { type: string }
+    XSessionId:
+      name: X-Session-Id
+      in: header
+      required: false
+      description: "[OWUI/OT] Chat-ID. Open Terminal führt darüber ein eigenes Arbeitsverzeichnis pro Chat. Wird weitergereicht."
+      schema: { type: string }
+    XTerminalContextId:
+      name: X-Terminal-Context-Id
+      in: header
+      required: false
+      description: |
+        [OWUI] Nur gesetzt, wenn in Open WebUI „Terminal Contexts“ auf „Per chat“ oder
+        „Per automation“ steht. Werte: `chat:<chat_id>` oder `automation:<automation_id>`.
+        Fehlt er, gilt `default`. [Eigen] Nur zur Pod-Auswahl, nicht weiterreichen.
+      schema:
+        type: string
+        pattern: "^(chat|automation):.+$"
+
+  responses:
+    BadRequest:
+      description: Ungültige Anfrage (z. B. `X-User-Id` fehlt)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Fehlende oder ungültige Authentifizierung
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: User-ID aus Token passt nicht zu `X-User-Id`
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Policy unbekannt
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadGateway:
+      description: Pod existiert, ist aber nicht erreichbar
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ProvisioningTimeout:
+      description: Pod wurde nicht rechtzeitig bereit
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: ok }
+
+    Readiness:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        checks:
+          type: object
+          additionalProperties: { type: string }
+          examples:
+            - { kubernetes: ok, policy_cache: ok }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: Kurzbeschreibung }
+        code:
+          type: string
+          description: "[Eigen] Maschinenlesbarer Code"
+          enum:
+            - missing_user_id
+            - unauthorized
+            - user_mismatch
+            - policy_not_found
+            - quota_exceeded
+            - provisioning_failed
+            - provisioning_timeout
+            - upstream_unreachable
+        detail: { type: string }
+
+    TerminalConfig:
+      type: object
+      description: "[OT] Antwort von `GET /api/config`."
+      properties:
+        features:
+          type: object
+          properties:
+            terminal: { type: boolean }
+            notebooks: { type: boolean }
+            system: { type: boolean }
+
+    SystemPrompt:
+      type: object
+      properties:
+        prompt: { type: string }
+
+    PolicyData:
+      type: object
+      description: |
+        [OWUI] Felder, die der Admin-Dialog von Open WebUI setzt und wieder liest.
+        [Eigen] Zusätzliche Felder (unten markiert) pflegst du per API oder YAML. Open WebUI ignoriert sie.
+        Achtung: Speichert ein Admin die Policy im Dialog, schickt Open WebUI nur seine eigenen Felder.
+        Der Orchestrator sollte bei PUT deshalb unbekannte, nicht gesendete Eigen-Felder **beibehalten**.
+      additionalProperties: false
+      properties:
+        image:
+          type: string
+          description: "[OWUI] Container-Image. Leer → Default des Orchestrators."
+          examples: ["ghcr.io/open-webui/open-terminal:latest"]
+        cpu_limit:
+          type: string
+          description: "[OWUI] Kubernetes-Quantity, Default im Dialog `1`."
+          examples: ["1", "500m"]
+        memory_limit:
+          type: string
+          description: "[OWUI] Kubernetes-Quantity, Default im Dialog `1Gi`."
+          examples: ["1Gi"]
+        storage:
+          type: string
+          description: "[OWUI] Größe des PVC. Fehlt das Feld → ephemeral (emptyDir)."
+          examples: ["5Gi"]
+        idle_timeout_minutes:
+          type: integer
+          minimum: 1
+          description: "[OWUI] Pod wird nach so vielen Minuten ohne Request und ohne offene WebSocket-Verbindung gelöscht. Default im Dialog 30."
+        env:
+          type: object
+          description: "[OWUI] Zusätzliche Umgebungsvariablen für den Pod. `OPEN_TERMINAL_API_KEY` wird vom Orchestrator überschrieben."
+          additionalProperties: { type: string }
+        cpu_request:
+          type: string
+          description: "[Eigen] Default = `cpu_limit`."
+        memory_request:
+          type: string
+          description: "[Eigen] Default = `memory_limit`."
+        storage_class:
+          type: string
+          description: "[Eigen] StorageClass für das PVC."
+        egress:
+          type: string
+          enum: [none, internet, cluster]
+          description: "[Eigen] Wählt per Pod-Label eine vorbereitete NetworkPolicy aus. Default `internet`."
+        max_workspaces_per_user:
+          type: integer
+          minimum: 1
+          description: "[Eigen] Begrenzt Workspaces pro User bei „Per chat“-Contexts. Überschreitung → ältester Idle-Workspace wird entfernt."
+
+    Policy:
+      type: object
+      required: [id, data]
+      properties:
+        id: { type: string }
+        data: { $ref: "#/components/schemas/PolicyData" }
+        created_at: { type: string, format: date-time, description: "[Eigen]" }
+        updated_at: { type: string, format: date-time, description: "[Eigen]" }
+
+    Lifecycle:
+      type: object
+      description: |
+        [OWUI] Freies JSON, Open WebUI interpretiert es nicht.
+        [Eigen] Vorschlag für die Felder unten. Unbekannte Felder → 400.
+      additionalProperties: false
+      properties:
+        max_lifetime_hours:
+          type: integer
+          minimum: 1
+          description: Pod wird spätestens nach dieser Zeit neu gestartet, auch wenn er aktiv ist.
+        provision_timeout_seconds:
+          type: integer
+          minimum: 10
+          maximum: 280
+          default: 120
+          description: Maximale Wartezeit beim Anlegen. Muss unter dem 300-s-Timeout von Open WebUI liegen.
+        keep_volume_days:
+          type: integer
+          minimum: 0
+          description: PVCs ungenutzter Workspaces werden nach so vielen Tagen gelöscht. 0 = nie.
+
+    LifecycleEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: "#/components/schemas/Lifecycle" }
+
+    RefreshRequest:
+      type: object
+      description: "[OWUI] Body wie von Open WebUI gesendet."
+      required: [only_idle, reset]
+      properties:
+        only_idle:
+          type: boolean
+          description: Nur Workspaces ohne aktive WebSocket-Verbindung und ohne Request seit 60 s [Eigen].
+        reset:
+          type: boolean
+          description: "[Eigen] true → PVC mitlöschen (Workspace startet leer)."
+        user_id:
+          type: string
+          description: Nur diesen User. Fehlt → alle.
+        policy_id:
+          type: string
+          description: Nur diese Policy. Fehlt → alle.
+
+    RefreshResponse:
+      type: object
+      required: [refreshed]
+      properties:
+        refreshed:
+          type: integer
+          description: "[OWUI] Anzahl betroffener Workspaces, wird im Toast angezeigt."
+
+    Workspace:
+      type: object
+      description: "[Eigen]"
+      required: [user_id, policy_id, context_id, status]
+      properties:
+        user_id: { type: string }
+        policy_id: { type: string }
+        context_id: { type: string, examples: ["default", "chat:6f1c…"] }
+        pod_name: { type: string }
+        status: { type: string, enum: [provisioning, ready, terminating, failed] }
+        created_at: { type: string, format: date-time }
+        last_activity_at: { type: string, format: date-time }
+        open_websockets: { type: integer, minimum: 0 }
